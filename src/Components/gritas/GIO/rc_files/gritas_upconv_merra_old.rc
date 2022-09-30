@@ -1,0 +1,77 @@
+#
+# GrITAS Resource file.
+#
+#
+                                                                                                                                
+# Vertical levels - Must decrease monotonically
+# ---------------------------------------------
+GrITAS*Vertical_Levels: 1000 975 950 925 900 875 850 825 800 775 750 725 700 650 600 550 500 450 400 350 300 250 200 150 100  70  50  40  30  20  10   7   5   4   3   2   1  0.7  0.5  0.4  0.3  0.1                                                                                                   
+# User Defined Grid List
+# ----------------------
+GrITAS*List::
+#  kt    var name      kx's
+   44    tv_raob       120 132
+   11    qv_raob       120 132
+    4     u_raob       220 221 232
+    5     v_raob       220 221 232
+   33   _ps_raob       120 232
+# 
+   44    tv_acraft     130 131 133
+   11     qv_acraft    130 131 133
+    4     u_acraft     230 231 233
+    5     v_acraft     230 231 233
+#
+    4     u_prof       223 224
+    5     v_prof       223 224
+#
+    4     u_amv        242 243 245 246 252 253 255 257 258
+    5     v_amv        242 243 245 246 252 253 255 257 258
+#
+   4     _u_scat       285 286
+   5     _v_scat       285 286
+#
+   12    _w_ssmi       283
+#
+   39 _sst_sea         180 181 183 
+   44  _tv_sea         180
+   33  _ps_sea         180 183
+    4   _u_sea         280 282 284 
+    5   _v_sea         280 282 284
+   11  _qv_sea         180
+
+#
+   44  _tv_land        181 187   
+   33  _ps_land        181 187 191
+    4   _u_land        281 287
+    5   _v_land        281 287
+   11  _qv_land        181 187
+
+#  kt    var name      kx's
+#   44    tvraob       120 132
+#   11     qraob       120 132
+#    4     uraob       220 221 232
+#    5     vraob       220 221 232
+#   44    tvairc       130 131 133
+#   11     qairc       130 131 133
+#    4     uairc       230 231 233
+#    5     vairc       230 231 233
+#    4     uprof       223 224
+#    5     vprof       223 224
+#    4     usat        242 243 245 246 252 253 255 257 258
+#    5     vsat        242 243 245 246 252 253 255 257 258
+#   33   _psrsfc       120 232
+#   44   _tvssfc       180
+#   11    _qssfc       180
+#   33   _psssfc       180 183
+#    4    _ussfc       280 282 284 
+#    5    _vssfc       280 282 284
+#   12   _wspssmi      283
+#    4   _uqscat       285 286
+#    5   _vqscat       285 286
+#   39  _sstssfc       180 181 183 
+#   44   _tvlsfc       181 187   
+#   11    _qlsfc       181 187
+#   33   _pslsfc       181 187 191
+#    4    _ulsfc       281 287
+#    5    _vlsfc       281 287
+::

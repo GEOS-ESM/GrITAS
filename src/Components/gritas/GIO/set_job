@@ -1,0 +1,134 @@
+#!/bin/csh
+
+#  set Usage   = "set_job.csh MM"
+#  set Example = "set_job.csh 01"
+
+  set Usage   = "set_job.csh YYYY MM"
+  set Example = "set_job.csh 1999 01"
+
+# Set defaults for options
+# ------------------------
+  set TRUE = 1; set FALSE = 0 
+
+# Set years
+# ---------
+#  set Years = ( 1982 )
+#  set Month =   12
+#  set Day   =   17
+  set Years = ( 1999 )
+  set Month =   02
+  set Day   =   ""
+
+  if ( $#argv < 2 ) then
+   clear
+   echo $Usage
+   echo $Example
+   exit
+  endif
+
+   set Years = ( $1 )
+   set Month = $2
+
+   echo "Years: $Years Month:  $Month "
+
+# Set options defined by user, if any
+# -----------------------------------
+#  set ReqArgv = ()
+#  while ( $#argv > 0 )
+#    switch ( $argv[1] )
+#       case -o:
+#          set OutBaseName = $argv[2]
+#          shift
+#          breaksw
+#       
+#       default:
+#          set FirstChar = `echo $argv[1] | awk '{ print substr ($1,1,1)}'`
+#          if ( FirstChar == "-" ) then
+#                             # Any other option produces an error
+#             echo "Illegal option "$argv[1]
+#             goto err
+#
+#          else               # ... or is a required argument
+#             set ReqArgv = ($ReqArgv $argv[1])
+#
+#          endif
+#    endsw
+#    shift
+#  end
+
+# Get required parameters
+# -----------------------
+#  if ( $#ReqArgv < 1 ) goto err
+#  set Month  = $ReqArgv[1]; shift ReqArgv
+
+
+# For each year listed ...
+# ------------------------
+# set ArchRoot   = /archive/merra/dao_ops/production/GEOSdas-2_1_4
+  echo " ArchRoot $ArchRoot"
+
+  set Next_Years = ( $Years ); shift Next_Years
+  foreach Year ( $Years )
+
+#    Set the appropriate experiment ID tag
+#    -------------------------------------
+     if      ( $Year < 1989 ) then
+        set ExpID = d5_merra_jan79
+     else if ( $Year < 1998 ) then
+        set ExpID = d5_merra_jan89
+     else
+        set ExpID = d5_merra_jan98
+     endif
+
+#    Migrate the data from archive for the first
+#    yearor if there are required unmigrated files
+#    ---------------------------------------------
+     set diag_BName = $ExpID.diag_conv_
+     set ArchDir    = ${ArchRoot}/${ExpID}/obs/Y${Year}/M${Month}
+     set OffLine_List = (`dmls -l ${ArchDir}/${diag_BName}* | egrep "(OFL)|(UNM)" | awk '{print $NF}' ` )
+     if ( $Year    == $Years[1] || $#OffLine_List > 0 ) then
+# echo       dmget ${ArchDir}/${diag_BName}* 
+        dmget ${ArchDir}/${diag_BName}*.${Year}${Month}${Day}* &
+     endif
+
+#    Migrate data from archive for next year so that it will
+#    be ready when the data processing for this year is completed  
+#    ------------------------------------------------------------
+     if ( $#Next_Years > 0 ) then
+        set Next_Year = $Next_Years[1]; shift Next_Years
+        if      ( $Next_Year < 1989 ) then
+           set Next_ExpID = d5_merra_jan79
+        else if ( $Next_Year < 1998 ) then
+           set Next_ExpID = d5_merra_jan89
+        else
+           set Next_ExpID = d5_merra_jan98
+        endif
+        set diag_BName    = $Next_ExpID.diag_conv_
+        set Next_ArchDir  = ${ArchRoot}/${Next_ExpID}/obs/Y${Next_Year}/M${Month}
+# echo        dmget ${Next_ArchDir}/${diag_BName}*
+        dmget ${Next_ArchDir}/${diag_BName}*.${Year}${Month}${Day}* &
+     endif
+
+#    Process the data
+#    ----------------
+#    csh -vx diag2gritas2.csh $ExpID ${Year}${Month}${Day} -fetch -cleanup -means; set Status = $status
+
+     csh -vx diag2gritas2.csh3 $ExpID ${Year}${Month}${Day} -fetch -cleanup -means; set Status = $status
+     if ( $Status ) then
+        echo "Error status returned from diag2gritas2.csh3"
+        goto err
+     endif
+  end
+
+# All is well
+# ----------- 
+  exit 0
+
+# Usage messages
+# --------------
+  cleanup:
+
+  err:
+     echo "  usage: $Usage"
+     echo "example: $Example"
+  exit 1

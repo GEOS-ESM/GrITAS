@@ -1,0 +1,15 @@
+#
+# GrITAS Resource file.
+#
+#
+                                                                                                                                
+# Vertical levels - Must decrease monotonically
+# ---------------------------------------------
+GrITAS*Vertical_Levels: 1 2 3 4 
+
+# User Defined Grid List
+# ----------------------
+GrITAS*List::
+#  kt   var name     Title                                 kx's
+   40   tb          "MSU AM: brightness temperature [K]"   206 208 210 212 214
+::

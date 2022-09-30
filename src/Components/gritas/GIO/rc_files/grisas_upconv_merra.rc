@@ -1,0 +1,57 @@
+#
+# GrITAS Resource file.
+#
+#
+#
+# Vertical levels - Must decrease monotonically
+# ---------------------------------------------
+GrITAS*Vertical_Levels:  550 500 450 400 350 300 250
+#
+# User Defined Grid List
+# ----------------------
+GrITAS*List::
+#  kt   var name     Title                                 kx's
+   44    tv_raob    "RADIOSONDE: Virtual temperature [K]"  120 132
+   11    qv_raob    "RADIOSONDE: Specific humidity [g/kg]" 120 132
+    4     u_raob    "RADIOSONDE: Zonal wind  [m/s]"        220 221 232
+    5     v_raob    "RADIOSONDE: Meridional wind  [m/s]"   220 221 232
+   33   _ps_raob    "RADIOSONDE: Surface pressure [hPa]"   120 232
+# 
+   44    tv_acraft  "AIRCRAFT: Virtual temperature [K]"    130 131 133
+   11    qv_acraft  "AIRCRAFT: Specific humidity [g/kg]"   130 131 133
+    4     u_acraft  "AIRCRAFT: Zonal wind [m/s]"           230 231 233
+    5     v_acraft  "AIRCRAFT: Meridional wind [m/s]"      230 231 233
+#
+    4     u_prof    "PROFILER: Zonal wind [m/s]"           223 224
+    5     v_prof    "PROFILER: Meridional wind [m/s]"      223 224
+#
+#         Commented for GEOS-5.7.2 
+#
+#   4    _u_scat    "SCATTEROMETER: Zonal wind [m/s]"      285 286
+#   5    _v_scat    "SCATTEROMETER: Meridional wind [m/s]" 285 286
+#
+#         New  ascat  for GEOS-5.7.2 
+#
+    4    _u_scat    "SCATTEROMETER: Zonal wind [m/s]"      289
+    5    _v_scat    "SCATTEROMETER: Meridional wind [m/s]" 289
+#
+#         Commented for GEOS-5.7.2
+#
+#  12    _w_ssmi    "SSMI: Wind speed [m/s]"               283
+#
+    4     u_amv     "ATMOS MOTION VECTORS: Zonal wind [m/s]"         242 243 245 246 252 253 255 257 258
+    5     v_amv     "ATMOS MOTION VECTORS: Meridional wind [m/s]"    242 243 245 246 252 253 255 257 258
+#
+   39  _sst_sea      "SEA SURFACE: Sea surface temperature [K]"      180 181 183
+   44   _tv_sea      "SEA SURFACE: Virtual temperature [K]"          180
+   33   _ps_sea      "SEA SURFACE: Surface pressure [hPA]"           180 183
+    4    _u_sea      "SEA SURFACE: Zonal wind [m/s]"                 280 282 284 
+    5    _v_sea      "SEA SURFACE: Meridional wind [m/s]"            280 282 284
+   11   _qv_sea      "SEA SURFACE: Specific humidity [g/kg]"         180
+#
+   33   _ps_land    "LAND SURFACE: Surface pressure [hPA]"           181 187
+#
+#   Commented for GEOS5-7-2
+
+#  33   _ps_paob    "PAOB SURFACE: Synthetic surface pressure [hPA]" 191
+::

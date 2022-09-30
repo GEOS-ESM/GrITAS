@@ -1,0 +1,24 @@
+
+    New scripts are created to run Conventional Aircraft data and the existing scripts are
+    updated to take the new arguments.
+
+    "gritas.f" is modified to accept 2 new arguments "-hdf -res RES", 
+      where "-hdf"   will tag the output files with the tag "hdf" as MERRA needed and 
+            "-res m" will grid the data in "540x361" horizontal grid.
+
+     envfile.csh is updated to pass the RESolution to gritas as needed.
+
+
+     envfile.csh                          User given default directories, to be modified as
+                                          user intended to keep the I/O files.
+
+     run_set_job.csh                      Wraper shell, to source the g5_modules and 
+                                          environment variables (envfile.csh).
+
+     set_job                              Script to set the Year/Month, to spin to process
+                                          Conventional Aricraft (gritas) gridded files.
+
+     diag2gritas2.csh3                    Script to process conventional Aircraft data to
+                                          gritas gridded files.
+
+     gritas2means.csh                     Script to compute monthly gridded files.              

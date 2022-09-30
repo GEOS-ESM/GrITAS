@@ -1,0 +1,14 @@
+#
+# GrITAS Resource file.
+#
+#
+# Vertical levels or channels
+# ---------------------------
+GrITAS*Vertical_Levels: 1 2 3 4 5
+
+# User Defined Grid List
+# ----------------------
+GrITAS*List::
+#  kt   var name   Title                                            kx's
+   40   tb        "AMSU-B NOAA-15(AM): brightness temperature [K]"  415
+::

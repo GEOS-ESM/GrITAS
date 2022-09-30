@@ -1,0 +1,15 @@
+#
+# GrITAS Resource file.
+#
+#
+                                                                                                                                
+# Vertical levels
+# ---------------
+GrITAS*Vertical_Levels: 1 2 3 4 5 6 7
+
+# User Defined Grid List
+# ----------------------
+GrITAS*List::
+#  kt   var name   Title                                          kx's
+   40   tb        "SSM/I DMSP F-08: brightness temperature [K]"   708
+::
