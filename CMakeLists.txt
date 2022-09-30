@@ -1,0 +1,114 @@
+cmake_minimum_required (VERSION 3.17)
+cmake_policy (SET CMP0053 NEW)
+cmake_policy (SET CMP0054 NEW)
+
+project (
+  GrITAS
+  VERSION 1.0.0
+  LANGUAGES Fortran CXX C)  # Note - CXX is required for ESMF
+
+if ("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
+   message(SEND_ERROR "In-source builds are disabled. Please
+           issue cmake command in separate build directory.")
+endif ("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
+
+# Set the default build type to release
+if (NOT CMAKE_BUILD_TYPE)
+  message (STATUS "Setting build type to 'Release' as none was specified.")
+  set (CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
+  # Set the possible values of build type for cmake-gui
+  set_property (CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
+    "Debug" "Release" "Aggressive")
+endif ()
+
+# mepo can now clone subrepos in three styles
+foreach (dir cmake @cmake cmake@)
+  if (EXISTS ${CMAKE_CURRENT_LIST_DIR}/${dir})
+    list (APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/${dir}")
+    set (ESMA_CMAKE_PATH "${CMAKE_CURRENT_LIST_DIR}/${dir}" CACHE PATH "Path to ESMA_cmake code")
+  endif ()
+endforeach ()
+include (esma)
+
+# Add CMake for when not using Baselibs
+if (NOT Baselibs_FOUND)
+  set(MPI_DETERMINE_LIBRARY_VERSION TRUE)
+  find_package(MPI)
+
+  find_package(NetCDF REQUIRED C Fortran)
+  add_definitions(-DHAS_NETCDF4)
+  add_definitions(-DHAS_NETCDF3)
+  add_definitions(-DNETCDF_NEED_NF_MPIIO)
+  add_definitions(-DHAS_NETCDF3)
+
+  find_package(HDF5 REQUIRED)
+  if(HDF5_IS_PARALLEL)
+     add_definitions(-DH5_HAVE_PARALLEL)
+  endif()
+
+  if (NOT TARGET esmf)
+    if (DEFINED ENV{esmf_ROOT})
+      message (STATUS "Found esmf_ROOT in environment: $ENV{esmf_ROOT}")
+      find_path(ESMF_CMAKE_PATH FindESMF.cmake HINTS "$ENV{esmf_ROOT}/cmake")
+      message (STATUS "Found FindESMF.cmake in: ${ESMF_CMAKE_PATH}")
+      if (ESMF_CMAKE_PATH)
+        message (STATUS "Appending to CMAKE_PREFIX_PATH: ${ESMF_CMAKE_PATH}")
+        list (APPEND CMAKE_MODULE_PATH ${ESMF_CMAKE_PATH})
+      endif ()
+    endif ()
+
+    find_package(ESMF MODULE REQUIRED)
+
+    # ESMF as used in MAPL requires MPI
+    # NOTE: This looks odd because some versions of FindESMF.cmake out in the
+    #       world provide an "esmf" target while others provide "ESMF". So we
+    #       need this ugliness to support both.
+    if (TARGET esmf)
+      target_link_libraries(esmf INTERFACE MPI::MPI_Fortran)
+    else()
+      target_link_libraries(ESMF INTERFACE MPI::MPI_Fortran)
+      # MAPL and GEOS use lowercase target due to historical reasons but
+      # the latest FindESMF.cmake file from ESMF produces an ESMF target.
+      add_library(esmf ALIAS ESMF)
+    endif()
+  endif ()
+
+  find_package(GFTL_SHARED REQUIRED)
+
+  find_package(ZLIB REQUIRED)
+  # Another issue with historical reasons, old/wrong zlib target used in GEOS
+  add_library(ZLIB::zlib ALIAS ZLIB::ZLIB)
+
+  # Using FMS from spack requires updates to fvdycore due to interface changes
+  # in FMS 2022. This is commented for now until this transition can occur.
+  #################################################
+  # find_package(FMS QUIET COMPONENTS R4 R8)      #
+  # if (FMS_FOUND)                                #
+  #   # We need aliases due to historical reasons #
+  #   add_library(fms_r4 ALIAS FMS::fms_r4)       #
+  #   add_library(fms_r8 ALIAS FMS::fms_r8)       #
+  # endif ()                                      #
+  #################################################
+
+endif ()
+
+ecbuild_declare_project()
+
+esma_mepo_style(env env_dir)
+esma_add_subdirectory (${env_dir})
+
+# Recursively build source tree
+add_subdirectory (src)
+
+# https://www.scivision.dev/cmake-auto-gitignore-build-dir/
+# --- auto-ignore build directory
+if(NOT EXISTS ${PROJECT_BINARY_DIR}/.gitignore)
+  file(WRITE ${PROJECT_BINARY_DIR}/.gitignore "*")
+endif()
+
+# Piggyback that file into install
+install(
+   FILES ${PROJECT_BINARY_DIR}/.gitignore
+   DESTINATION ${CMAKE_INSTALL_PREFIX}
+   )
+

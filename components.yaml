@@ -1,0 +1,26 @@
+GrITAS:
+  fixture: true
+  develop: main
+
+env:
+  local: ./@env
+  remote: ../ESMA_env.git
+  tag: v4.4.0
+  develop: main
+
+cmake:
+  local: ./@cmake
+  remote: ../ESMA_cmake.git
+  tag: v3.18.0
+  develop: develop
+
+ecbuild:
+  local: ./@cmake/@ecbuild
+  remote: ../ecbuild.git
+  tag: geos/v1.2.0
+
+GMAO_Shared:
+  local: ./src/Shared/@GMAO_Shared
+  remote: ../GMAO_Shared.git
+  tag: v1.6.1
+  develop: main
