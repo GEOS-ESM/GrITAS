@@ -1,2 +1,2 @@
-#esma_add_subdirectories(GEOSgcm_App)
+esma_add_subdirectories(GrITAS_App)
 
