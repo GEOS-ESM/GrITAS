@@ -1,9 +1,8 @@
 esma_set_this()
 
-string (REPLACE " " ";" flags ${FREAL4})
+string (REPLACE " " ";" flags "${FREAL4}")
 add_compile_options(${flags})
 set (CMAKE_Fortran_FLAGS_RELEASE "-O3 ${common_Fortran_flags} ${ALIGNCOM} ${MISMATCH}")
-
 
 set (srcs
      algdiv.f
@@ -78,7 +77,8 @@ set (srcs
      stvaln.f
   )
 
+esma_add_library(${this} SRCS ${srcs})
 target_compile_options(${this} PRIVATE ${flags})
 
-ecbuild_add_executable (TARGET ut_cdfchi.x      SOURCES ut_cdfchi.f        LIBS ${this})
+ecbuild_add_executable (TARGET ut_cdfchi.x SOURCES ut_cdfchi.f LIBS ${this})
 

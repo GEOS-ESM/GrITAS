@@ -19,7 +19,6 @@ set (srcs
      stdio.h
   )
 
-target_compile_options(${this} PRIVATE ${flags})
-
-ecbuild_add_executable (TARGET ut_cdfchi.x      SOURCES ut_cdfchi.f        LIBS ${this})
+esma_add_library (${this} SRCS ${srcs} DEPENDENCIES GMAO_ods)
+target_compile_options(${this} PRIVATE ${flags} ${EXTENDED_SOURCE})
 
