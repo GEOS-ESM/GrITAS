@@ -1,0 +1,45 @@
+30Sep2022:
+ - Todling: bring GrITAS to GIT - the contents of this directory were updated to CVS
+            tag GrITAS-MERRA2_V2_SLES12 before placed into GIT - that seemed to be the
+            latest tag for this directory and below. 
+            NOTE: The gritas software (dir above) is however not in sync w/ the tag 
+                  GrITAS-MERRA2_V2_SLES12; some merging and error checking would have
+                  do be done to make sure the version of GrITAS brought in here works 
+                  with that in the tag: GrITAS-MERRA2_V2_SLES12
+MERRA2
+
+  The following scritps to be used to process Conventional an d Satellite gridded (GrITAS) data.
+   
+   (Modifiy the scripts to represent the appropriate experiment, workiding and storage directories.)
+
+     run_diag_gritas.csh
+     run_sat_gritas.csh
+     run_means.csh            (To compute Conventional monthly means.)
+
+------------------------------------------------------------------------------------------------------
+
+MERRA
+
+The following executables are assumed to be in the directory when running scripts: GFIO_mean_r8.x gritas.x
+  
+ctl_file: directory containing the control files
+rc_files: directory containing the resource files
+old_files: directory containing
+set_job: The main script for generating the statistics from conventional
+         data.  Calls the script, diag2gritas2.csh
+set_dsat_job.csh: The main script for generating the statistics from
+                  satellite data. Calls the script run_dsat.csh
+run_dsat.csh: Script for migrating archived input files and calling the
+              script, dsat2gritas2.csh or dsat2gritas2_ods.csh
+diag2gritas2.csh: Script for doing most of the processing of conventional
+                  data including executing the gritas.x program (to generate
+                  the 6-hourly files), compressing the data files and 
+                  transfering the data files to the portal directory and 
+                  calling the script gritas2means.csh (to compute the
+                  monthly statistics)
+dsat2gritas2.csh: Script for doing most of the processing of satellite
+                  data including executing the gritas.x program (to generate
+                  the monthly means), compressing the data files, and 
+                  copying the data to the portal directory.
+name_archfiles.csh: Script used to name input archived files. Called by
+                    diag2gritas2.csh and run_dsat.csh

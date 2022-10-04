@@ -1,0 +1,13 @@
+#!/bin/csh
+
+
+     setenv ESMADIR   /discover/nobackup/rgovinda/source_motel/gritas-merra-gio-03/GrITAS
+
+     source  envfile.csh
+     module purge 
+     source $ESMADIR/Linux/bin/g5_modules
+     module list
+
+     
+#    nohup set_job 1999 03 |& tee conv.199903.log
+     nohup csh -vx run_dsat.csh 200912 200912 -iver mhs_noaa18 |& tee mhs.200912.log

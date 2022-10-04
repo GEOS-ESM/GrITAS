@@ -1,0 +1,15 @@
+#
+# GrITAS Resource file.
+#
+#
+
+# Vertical levels
+# ---------------
+GrITAS*Vertical_Levels: 3 6 9:11 13:14 18 21 29 31 44:47 49 50 52:53 55:57 59:68 70 72:73 75:78 80:81 83:130 166:223 225:229
+
+# User Defined Grid List
+# ----------------------
+GrITAS*List::
+#  kt   var name     Title                                        kx's
+   40   tb          "AIRS AQUA (PM): brightness temperature [K]"  49
+::

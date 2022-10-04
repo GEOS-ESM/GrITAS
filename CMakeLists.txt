@@ -97,6 +97,8 @@ ecbuild_declare_project()
 esma_mepo_style(env env_dir)
 esma_add_subdirectory (${env_dir})
 
+add_definitions(-Dsys${CMAKE_SYSTEM_NAME})
+
 # Recursively build source tree
 add_subdirectory (src)
 

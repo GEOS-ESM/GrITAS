@@ -1,0 +1,26 @@
+#
+# GrITAS Resource file.
+#
+#
+                                                                                                                                
+# The entry below allows calculation of the ensemble spread (in ob-space) when
+# combined with the program -fobloc option to generate the forecast (background)
+# at ob-locations.
+#GrITAS*ODSmean_template: means/ensmean_conv_ges.%y4%m2%d2_%h2z.ods
+
+# Vertical levels - Must decrease monotonically
+# ---------------------------------------------
+#GrITAS*Vertical_Levels: 1000 850 700 500 400 300 250 200 150 100 
+#GrITAS*Vertical_Levels: 1000 850 700 500 400 300 250 200 150 100 70 50 30 10 5 2 1 0.4
+GrITAS*Vertical_Levels: 1000 950 900 850 800 750 700 650 600 550 500 450 400 350 300 250 200 150 100 95 90 85 80 75 70 65 60 55 50 45 40 35 30 25 20 15 10 5 2
+
+                                                                                                                                
+# User Defined Grid List
+# ----------------------
+GrITAS*List::
+#  kt    var name      kx's
+   44    vtmpraob     120
+    4    uwndraob     220
+    5    vwndraob     220
+   11    qraob        120
+::
