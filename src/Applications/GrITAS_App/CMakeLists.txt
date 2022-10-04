@@ -11,8 +11,8 @@ endif ()
 string (REPLACE " " ";" flags ${FREAL8})
 add_compile_options(${flags})
 
-ecbuild_add_executable(TARGET grisas.x SOURCES grisas.f LIBS GMAO_ods GMAO_mpeu gritas GMAO_gfio_r8 UTexas_dcdf)
-ecbuild_add_executable(TARGET gritas.x SOURCES gritas.f LIBS GMAO_ods GMAO_mpeu gritas GMAO_gfio_r8 UTexas_dcdf)
+ecbuild_add_executable(TARGET grisas.x SOURCES grisas.f LIBS GMAO_ods GMAO_eu gritas GMAO_gfio_r8 UTexas_dcdf)
+ecbuild_add_executable(TARGET gritas.x SOURCES gritas.f LIBS GMAO_ods GMAO_eu gritas GMAO_gfio_r8 UTexas_dcdf)
 
 #set(pythonscripts modis_l2a.py mxd04_l2a.py avhrr_l2a.py patmosx_l2a.py aod_data.py)
 #install(PROGRAMS ${pythonscripts} get_aero_obs.csh run_gaas_ana.csh DESTINATION bin)
