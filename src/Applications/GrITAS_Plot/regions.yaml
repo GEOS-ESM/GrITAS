@@ -1,0 +1,26 @@
+region:
+  nhe:
+    lona: 0.0
+    lonb: 360.0
+    lata: -90.0
+    latb: 90.0
+  nam:
+    lona: 0.0
+    lonb: 360.0
+    lata: -90.0
+    latb: 90.0
+  she:
+    lona: 0.0
+    lonb: 360.0
+    lata: -90.0
+    latb: 90.0
+  tro:
+    lona: 0.0
+    lonb: 360.0
+    lata: -90.0
+    latb: 90.0
+  glo:
+    lona: 0.0
+    lonb: 360.0
+    lata: -90.0
+    latb: 90.0
