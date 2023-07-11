@@ -12,6 +12,10 @@ parser.add_option('-r','--usrDefRegions',type=str,default='',
 # Parse the input arguments
 (options, args) = parser.parse_args()
 
+# Output serialization
+out=open('regions.yaml','w')
+myyam=common.myYML(out)
+
 
 # Some default regions
 #-----------------------------------------------------------------
@@ -37,40 +41,13 @@ if options.usrDefRegions:
 
 regions=[Region(k,v['lon'],v['lat']) for k,v in defRegions.items()]
 
-
 # Bundle all regions focused on into a super set
-Universe=Universe(regions)
-
-
-# Output serialization
-out=open('regions.yaml','w')
-myyam=common.myYML(out)
-
-Universe.serialize(myyam)
-sys.exit()
-
+Universe=Collection('region',regions)
 
 # Instantiate instruments
 instrList = ['amsuan15', 'amsuan19', 'atmsnpp']
-
-# # Configure dict
-# config={'configure': {k:v for k,v in instruments} }
-
-# Instruments = {'configure': {}}
-Instruments = {}
-for i in instrList:
-    Instruments.update(instrument(i,-10,10).collection)
-    # Instruments['configure'].update(instrument(i,-10,10).collection)
-    
+Instruments = Collection('configure',[instrument(i,-10,10) for i in instrList])
 
 
-# myyam.writeTag(Instruments)
-
-
-# # Form the universe aspect of yaml
-# Universe.serialize(myyam)
-
-
-
-Res=Residual(Instruments,Universe,monthlyComparator(True))
-Res.serialize(myyam)
+Res=Residual(Instruments,monthlyComparator(True),Universe)
+Res.serialize(myyam,out)

@@ -12,7 +12,7 @@ class myYML:
         self.sort_keys=sort_keys
         self.default_flow_style=default_flow_style
 
-    def writeTag(self,obj):
+    def writeObj(self,obj):
         yaml.dump(obj,stream=self.out,sort_keys=self.sort_keys,\
                   default_flow_style=self.default_flow_style,indent=self.indent)
         # yaml.write_line_break(yaml.Dumper)
