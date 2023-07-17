@@ -14,7 +14,6 @@ def verboseDict(d,indent=''):
             print("%s %s"%(pref,v))
 
 
-
 # Domain of latitude/longitude - nothing but a glorified tuple
 #---------------------------------------------------
 class coordRange:
@@ -23,7 +22,7 @@ class coordRange:
 
 # Some global properties
 #--------------------------
-class globalProps:
+class sharedFuncs:
     def __init__(self,name,*args):
         self.name=name
         self.collect=self.yamlStruc(args)
@@ -34,13 +33,11 @@ class globalProps:
 
 # A single region to be focused on 
 #---------------------------------------------------
-class Region(globalProps):
-    def __init__(self,name=None,lonRange=(0.0,360.0),latRange=(-90.0,90.0)):
+class Region(sharedFuncs):
+    def __init__(self,name='globe',lonRange=(0.0,360.0),latRange=(-90.0,90.0)):
         self.name=name
         self.longitude = coordRange(lonRange)
         self.latitude = coordRange(latRange)
-        self.toYaml = self.yamlStruc(('lona',self.longitude._min),('lonb',self.longitude._max),
-                                     ('lata',self.latitude._min),('latb',self.latitude._max))
 
     def __repr__(self):
         return 'Region instance "%s":\n\tLongitude : (%.1f,%.1f)\n\tLatitude  : (%.1f,%.1f)\n'%\
@@ -50,51 +47,93 @@ class Region(globalProps):
     def serialize(self,yam):
         yam.writeObj({self.name: self.toYaml})
 
-    def read(self,valsYML):
-        self.name=vals
-        self.longitude = coordRange(tuple())
-        self.latitude = coordRange(tuple())
-        
+    def toYaml(self):
+        return self.yamlStruc(('lona',self.longitude._min),('lonb',self.longitude._max),
+                              ('lata',self.latitude._min),('latb',self.latitude._max))
 
-# Collect all regions to be focused on 
+    def fromYaml(self,yamlTop,**kwargs):
+        self.name=kwargs['name']
+        self.longitude = coordRange((yamlTop['lona'],yamlTop['lonb']))
+        self.latitude = coordRange((yamlTop['lata'],yamlTop['latb']))
+        return self
+
+
+# Map a key to a dict of items
 #---------------------------------------------------
-class Collection:
-    def __init__(self,name,regions):
-        self.name = name
-        self.regions = regions
-
+class NestedDict:
+    '''
+    Maps a key to list of class instances
     
-    # Serialize an instance of Collection
+    Serializable to yaml
+    '''
+    def __init__(self,key,members=[]):
+        self.key = key
+        self.members = members
+        
+    def __repr__(self):
+        s ='NestedDict instance "%s" with members:\n'%self.key
+        try:
+            for m in self.members: s += m.__repr__()
+        except:
+            s += ''
+        return s
+
+    def toYaml(self):
+        return {mem.name:mem.toYaml() for mem in self.members}
+
+    def fromYaml(self,yamlTop,cls):
+        # If reading from yaml, clear contents of members to flush default class instances
+        # del self.members[:]
+        self.members=[]
+
+        for k in yamlTop.keys():
+            dum=instrument() if cls=='INSTRUMENT' else Region()
+            self.append( dum.fromYaml(yamlTop[k],name=k) )
+        
+    # Serialize
     def serialize(self,yam):
-        toYaml = {r.name:r.toYaml for r in self.regions}
-        yam.writeObj({self.name: toYaml})
+        yam.writeObj({self.key: self.toYaml() })
 
-
+    # Append new members
+    def append(self,m):
+        self.members.append(m)
+        # self.toYaml.update({m.name:m.toYaml})
+        
 
 # Collect configuration info for different instruments
 #-------------------------------------------------------
-class instrument(globalProps):
-    def __init__(self,name,_min,_max,vertUnits='index'):
+class instrument(sharedFuncs):
+    def __init__(self,name='Unspecified',_min=0,_max=0,vertUnits='index'):
         self.name=name
         self._min=_min
         self._max=_max
         self.vertUnits=vertUnits
-        self.toYaml=self.yamlStruc(('vertical units',str(self.vertUnits)),
-                                   ('min value', self._min),
-                                   ('max value', self._max))
 
+    def __repr__(self):
+        return 'instrument instance "%s":\n\t (min,max) = (%i,%i)\t vertUnits = %s\n'%(self.name,
+                                                                                       self._min,self._max,
+                                                                                       self.vertUnits)
     # Serialize instance of instrument
     def serialize(self,yam):
-        yam.writeObj({self.name: self.toYaml})
+        yam.writeObj({self.name: self.toYaml()})
 
+    def toYaml(self):
+        return self.yamlStruc(('vertical units',str(self.vertUnits)),
+                              ('min value', self._min),
+                              ('max value', self._max))
 
+    def fromYaml(self,yamlTop,**kwargs):
+        self.name=kwargs['name']
+        self._min=yamlTop['min value']
+        self._max=yamlTop['max value']
+        self.vertUnits=yamlTop['vertical units']
+        return self
 
-class monthlyComparator(globalProps):
+class monthlyComparator(sharedFuncs):
     def __init__(self,doit,typ='ratio'):
         self.name='compare monthly'
         self.doit=doit
         self.typ=typ
-        self.toYaml=self.yamlStruc(('doit',self.doit), ('type', self.typ))
 
     def help(self):
         availTypes=['ratio','difference','trivial']
@@ -102,39 +141,56 @@ class monthlyComparator(globalProps):
         for n,a in enumerate(availTypes):
             print("\t\t%i) %s"%(n+1,a))
 
+    def toYaml(self):
+        return self.yamlStruc(('doit',self.doit), ('type', self.typ))
+        
+    def fromYaml(self,yamlTop):
+        self.doit=yamlTop['doit']
+        self.typ=yamlTop['type']
+        
     def serialize(self,yam):
         yam.writeObj({'Comparator': self.toYaml})
 
 
-class Stats(globalProps):
-    def __init__(self,flav,confInterval):
+class Stats(sharedFuncs):
+    def __init__(self,flav='Unspecified',confInterval=True):
         self.flavor=flav
         self.scale, self.units=self.__set__()
         self.measures=['mean','stdv'] # How is this different from flavor??
         self.colors=[c for c in ['b','r','g','k'][:len(self.measures)]]
         self.confidence=confInterval
-        self.toYaml = self.yamlStruc(('flavor',     self.flavor),
-                                     ('scale',      self.scale),
-                                     ('units',      self.units),
-                                     ('measures',   self.measures),
-                                     ('colors',     self.colors),
-                                     ('confidence', self.confidence))
 
     def __set__(self):
+        if self.flavor   == 'Unspecified': return -1,-1
         if self.flavor   == 'Standard Deviation': return '%.1f'%1,'%'
         elif self.flavor == 'DFS per Ob':         return '%.1e'%10000,'1'
         elif self.flavor == 'Ob count':           return '%.1f'%1,'1'
         else:
             raise ValueError("Unsupported Stats Flavor = %s\n- Supported Flavors: %s, %s, %s"
                              %(self.flavor,'Standard Deviation','DFS per Ob','Ob count'))
-        
+    
+    def toYaml(self):
+        return self.yamlStruc(('flavor',     self.flavor),
+                              ('scale',      self.scale),
+                              ('units',      self.units),
+                              ('measures',   self.measures),
+                              ('colors',     self.colors),
+                              ('confidence', self.confidence))
+
+    def fromYaml(self,yamlTop):
+        self.flavor     = yamlTop['flavor']
+        self.scale      = yamlTop['scale']
+        self.units      = yamlTop['units']
+        self.measures   = yamlTop['measures']
+        self.colors     = yamlTop['colors']
+        self.confidence = yamlTop['confidence']
         
     def serialize(self,yam):
         yam.writeObj(self.toYaml)
 
-# Main class for visualizing residuals from GrITAS
+# Global properties 
 #------------------------------------------
-class Residual(Stats):
+class globalProps(sharedFuncs):
     '''
     Will incorporate the following structures
 
@@ -178,33 +234,42 @@ class Residual(Stats):
     latb : float
     '''
 
-    def __init__(self,instruments,comparator,universe):
+    def __init__(self,instruments=NestedDict('configure',[instrument()]),
+                 comparator=monthlyComparator(True),**kwargs):
         self.name='global'
-        self.startDate='YYYY-MM-DD'
-        self.endDate='YYYY-MM-DD'
-        self.nicknames=['geosfp', 'geosfpp']
-        self.expID=['f5294_fp','f5295_fpp']
-        self.fileName='XYZ'
-        self.obCnt=0
-        self.obType='atmsnpp'
-        self.regions=['glo']
+        self.startDate=kwargs.get('startDate')
+        self.endDate=kwargs.get('endDate')
+        self.nicknames=kwargs.get('nicknames')
+        self.expID=kwargs.get('expID')
+        self.fileName=kwargs.get('fileName')
+        self.obCnt=kwargs.get('obCnt')
+        self.obType=kwargs.get('obType')
+        self.regions=kwargs.get('regions')
         self.figType='png'
         self.monthlyPlot=False
         self.tSeriesPlot=False
 
-        self.stats=Stats('Standard Deviation',True)
+        self.stats=Stats() #'Standard Deviation',True)
         self.instruments=instruments
         self.comparatorMonthly=comparator
-        self.Universe=universe
+
+    def fromYaml(self,yamlTop,**kwargs):
+        self.startDate = yamlTop['start date']
+        self.endDate   = yamlTop['end date']
+        self.nicknames = yamlTop['nicknames']
+        self.expID     = yamlTop['experiment identifier']
+        self.fileName  = yamlTop['file name']
+        self.obCnt     = yamlTop['ob count treshold for statistics']
+        self.obType    = yamlTop['obtype']
+        self.regions   = yamlTop['regions']
+        self.figType   = yamlTop['figure type']
         
+        self.stats.fromYaml(yamlTop['statistics'])
+        self.instruments.fromYaml(yamlTop['configure'],cls='INSTRUMENT') #instrument())
+        self.comparatorMonthly.fromYaml(yamlTop['Comparator'])
 
-    def read(self,valsYML):
-        self.startDate=valsYML['start date']
-        self.endDate=valsYML['end date']
-        self.nicknames=valsYML['nicknames']
-        self.obType=valsYML['obType']
 
-    def serialize(self,yam,out):
+    def serialize(self,yam):
         toYaml = self.yamlStruc(('start date',                       self.startDate),
                                 ('end date',                         self.endDate),
                                 ('nicknames',                        self.nicknames),
@@ -214,14 +279,34 @@ class Residual(Stats):
                                 ('obtype',                           self.obType),
                                 ('regions',                          self.regions),
                                 ('figure type',                      self.figType),
-                                ('statistics',                       self.stats.toYaml),
                                 ('monthly plot',                     self.monthlyPlot),
-                                ('time series plot',                 self.tSeriesPlot),
-                                ('Comparator',                       self.comparatorMonthly.toYaml),
-                                ('configure',                        self.instruments.toYaml))
-        
-        yam.writeObj({self.name: toYaml}); out.write("\n")
-        self.Universe.serialize(yam)
+                                ('time series plot',                 self.tSeriesPlot))
+        toYaml.update({'statistics': self.stats.toYaml()})
+        toYaml.update({'Comparator': self.comparatorMonthly.toYaml()})
+        toYaml.update({'configure': self.instruments.toYaml()})
+
+        yam.writeObj({self.name: toYaml})
+
+
+# Main class for visualizing residuals from GrITAS
+#------------------------------------------
+class Residual:
+    def __init__(self,glob=globalProps(),universe=NestedDict('regions',[Region()])):
+        self.globalProps=glob
+        self.universe=universe
+
+    def serialize(self,yam,out):
+        self.globalProps.serialize(yam)
+        out.write("\n")
+        self.universe.serialize(yam)
+
+
+
+
+
+
+
+
 
 
 
