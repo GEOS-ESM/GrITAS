@@ -53,14 +53,18 @@ Instruments = NestedDict('configure',[instrument(i,-10,10) for i in instrList])
 
 # Declare temporal window to investigate
 pandasDates = pd.date_range(start=options.date.split('/')[0],
-                            end=options.date.split('/')[1],freq='MS')
+                            end=options.date.split('/')[1],freq='D') #'MS')
 
 Global=globalProps(instruments=Instruments,comparator=monthlyComparator(True),
                    startDate=pandasDates[0].strftime('%Y-%m-%d'),
-                   endDate=pandasDates[-1].strftime('%Y-%m-%d'),
-                   nicknames=['geosfp', 'geosfpp'],
-                   expID=['f5294_fp','f5295_fpp'],
-                   fileName='XYZ',obCnt=0,obType='atmsnpp',regions=['glo'])
+                   endDate=pandasDates[-1].strftime('%Y-%m-%d'), 
+                   nicknames=['GEOSIT'],
+                   expID=['amsua_metop-a'],
+                   fileName='/discover/nobackup/cegerer/GrITAS-work/$TMPNAME/omf/$STRDATE-$ENDDATE/$EXPID_gritas_omf.nc4',
+                   obCnt=0,obType='atmsnpp',regions=['glo'])
+
+# nicknames=['geosfp', 'geosfpp'],
+# expID=['f5294_fp','f5295_fpp'],
 
 Res=Residual(glob=Global,universe=Universe)
 Res.serialize(myyam,out)

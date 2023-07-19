@@ -8,6 +8,14 @@ from datetime import timedelta
 
 import netCDF4 as nc4
 
+def revMaskedArray(arr,action):
+    if action:
+        idx = range(len(arr)-1,-1,-1)
+        return arr[idx], idx
+    else:
+        return arr, range(1,len(arr),1)
+
+
 def adjustFigAspect(fig,aspect=1):
     '''
     Adjust the subplot parameters so that the figure has the correct
@@ -25,51 +33,55 @@ def adjustFigAspect(fig,aspect=1):
                         right=.5+xlim,
                         bottom=.5-ylim,
                         top=.5+ylim)
-#......................................................
-def get_dims(fname):
-  f = nc4.Dataset(fname,'r', format='NETCDF4')
-  
-  lon = f.variables['lon'][:]
-  lat = f.variables['lat'][:]
-  lev = f.variables['lev'][:]
 
-  nlon=len(lon)
-  nlat=len(lat)
-  nlev=len(lev)
-  
-  f.close()
+class gritasVars:
+    def read(self,nc4Var,confidence,idx):
+        self.var = nc4Var[:,:,:,:]
+        self.mean = self.var[0,idx,:,:]
+        self.stdv = self.var[1,idx,:,:]
+        self.nobs = self.var[2,idx,:,:]
+        if confidence:
+            self.chisqr = self.var[3,idx,:,:]
+            self.chisql = self.var[4,idx,:,:]
+            self.tstud  = self.var[5,idx,:,:]
 
-  return nlev,nlat,nlon
-#......................................................
-def get_gritas_data(fname,vname,valsYaml):
 
-  f = nc4.Dataset(fname,'r', format='NETCDF4')
+class files(gritasVars):
+    def __init__(self,fname):
+        self.fname=fname
+        self.loc={}
+        self.var=None
+        self.mean=None
+        self.stdv=None
+        self.nobs=None
+        self.chisqr=None
+        self.chisql=None
+        self.tstud=None
 
-  #  time,lev,lat,lon
-  var = f.variables[vname][:,:,:,:]
-  lon = f.variables['lon'][:]
-  lat = f.variables['lat'][:]
-  lev = f.variables['lev'][:]
+    def __repr__(self):
+        return "NetCDF file "+self.fname+" contains ( levels = %i, nlat = %i, nlon = %i )"%self.dims()
+        
+    def dims(self):
+        try:
+            return len(self.loc['lev']), len(self.loc['lat']), len(self.loc['lon'])
+        except:
+            raise ValueError("Unable to report dims! - Must read from GrITAS file first!")
 
-  f.close()
+    def fromGritas(self,var,confidence,vunits):
+        f = nc4.Dataset(self.fname,'r', format='NETCDF4')
 
-  vunits = valsYaml['global']['configure'][vname]['vertical units']
-  if vunits != 'hPa':
-     nlev= len(lev)
-     idx = range(nlev-1,-1,-1)
-     lev = lev[idx]
-  mean = var[0,idx,:,:]
-  stdv = var[1,idx,:,:]
-  nobs = var[2,idx,:,:]
+        self.loc={k:f.variables[k][:] for k in ['lat','lon','lev']}
 
-  confidence=valsYaml['global']['confidence']
-  if confidence==True:
-     chisqr = var[3,idx,:,:]
-     chisql = var[4,idx,:,:]
-     tstud  = var[5,idx,:,:]
-     return lon,lat,lev,mean,stdv,nobs,chisqr,chisql,tstud
-  else: 
-     return lon,lat,lev,mean,stdv,nobs
+        # Reverse order of masked array 'lev', if vertical units are not 'hPa'
+        self.loc['lev'], idx = revMaskedArray(self.loc['lev'], ( vunits != 'hPa' ) )
+        # Read remaining variables - ie. the statistics
+        self.read(f.variables[var],confidence,idx)
+
+        f.close()
+        
+def get_gritas_data():
+    pass
+
 #.................................
 def vaccum(stype,tresh,var,nob,valsYaml):
   nlev = size(var[:,0,0])
@@ -119,21 +131,7 @@ def getconf(tresh,nob,chisql,chisqr,tstud):
  
   return confl, confr, studt
       
-#.................................
-def subsetreg(reglat, reglon, lat,lon):
 
-   indxlat = []
-   for i in range(0, len(lat)) :
-     if lat[i] >=reglat[0]:
-        if lat[i] <= reglat[1]:
-           indxlat.append(i)
-   indxlon = []
-   for i in range(0, len(lon)) :
-     if lon[i] >=reglon[0]:
-        if lon[i] <= reglon[1]:
-           indxlon.append(i)
-
-   return indxlat, indxlon
 #.................................
 def show_plot_monthly_one(lev,vals,anno,colors,case,scale,this,chisql,chisqr,studt,valsYaml):
 
@@ -389,15 +387,7 @@ def show_bars_monthly(lev,vals,colors,cases,scale,this,chisql,chisqr,studt,valsY
        mytitle = mytitle + ' (%s' % units + ')'
     title(mytitle)
 
-#.................................
-def reg_def(name,valsYaml):
-   reglat = zeros(2)
-   reglon = zeros(2)
-   reglat[0] = float(valsYaml['region'][name]['lata'])
-   reglat[1] = float(valsYaml['region'][name]['latb'])
-   reglon[0] = float(valsYaml['region'][name]['lona'])
-   reglon[1] = float(valsYaml['region'][name]['lonb'])
-   return reglat,reglon
+
 #.................................
 def get_start_to_end(start_date, end_date):
     date_list = []

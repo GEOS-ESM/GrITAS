@@ -78,6 +78,12 @@ class NestedDict:
             s += ''
         return s
 
+    def __getitem__(self,key):
+        for m in self.members:
+            if m.name == key: return m
+        raise KeyError('Region "%s" is not a member of Universe regions'%key)
+
+
     def toYaml(self):
         return {mem.name:mem.toYaml() for mem in self.members}
 
@@ -253,6 +259,19 @@ class globalProps(sharedFuncs):
         self.instruments=instruments
         self.comparatorMonthly=comparator
 
+        self.parseWildCards()
+
+    def parseWildCards(self):
+        try:
+            self.fileName=self.fileName.replace("$STRDATE",self.startDate.replace('-',''))
+            self.fileName=self.fileName.replace("$ENDDATE",self.endDate.replace('-',''))
+            self.fileName=[self.fileName.replace("$TMPNAME",n).replace("$EXPID",e)\
+                           for n in self.nicknames for e in self.expID]
+        except:
+            pass
+
+
+
     def fromYaml(self,yamlTop,**kwargs):
         self.startDate = yamlTop['start date']
         self.endDate   = yamlTop['end date']
@@ -267,6 +286,8 @@ class globalProps(sharedFuncs):
         self.stats.fromYaml(yamlTop['statistics'])
         self.instruments.fromYaml(yamlTop['configure'],cls='INSTRUMENT') #instrument())
         self.comparatorMonthly.fromYaml(yamlTop['Comparator'])
+
+        self.parseWildCards()
 
 
     def serialize(self,yam):

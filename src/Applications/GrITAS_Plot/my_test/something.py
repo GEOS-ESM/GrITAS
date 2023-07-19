@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import helperFns
 from helperFns import *
 import plot_util
 import common
@@ -37,96 +38,106 @@ with open(options.ymlConfig, 'r') as f:
 Res=plot_util.Residual(glob=Global,universe=Regions)
 
 
+
+
 # Set temporal information
-pandasDates = pd.date_range(start=Res.globalProps.startDate, end=Res.globalProps.endDate, freq='MS')
+pandasDates = pd.date_range(start=Res.globalProps.startDate, end=Res.globalProps.endDate, freq='D') #'MS')
 years = pandasDates.year; months = pandasDates.month
 
-# Build up input files from templated file name
-inputFiles = ([date.strftime(Res.globalProps.fileName) for date in pandasDates])
 
-fn = inputFiles[0].replace("$expid",Res.globalProps.expID[0])
-[nlev,nlat,nlon] = get_dims(fn)
+nlev, nlat, nlon = (0,0,0)
+
 numT = size(years)   # number of times to process
 numReg = size(Res.globalProps.regions) # number of regions
 numStats = len(Res.globalProps.stats.measures)   # number of statitics to calculate
 numExp = size(Res.globalProps.expID)  # number of experiments to handle
 
+
+print("Zeros: %i %i %i %i"%(nlev,numT,numReg,numStats))
+
+
 total = zeros([nlev,numT,numReg,numStats])
 if numExp==2:
    totals = zeros([nlev,numT,numReg,2])
 
-print(fn)
-print(totals)
-sys.exit(8)
 
-for ii,fname in enumerate(inputFiles):
+
+for ii,fname in enumerate(Res.globalProps.fileName):
   for nx,expid in enumerate(Res.globalProps.expID):
-
-    fn = fname.replace("$expid",expid)
-    print "this case now: ", fn if numExp>0 else ""
 
     yyyy = years[ii]
     mm = months[ii]
     mm =  str(mm).rjust(2, '0')
 
-    if Res.globalProps.stats.confidence:
-       [lon,lat,lev,mean,stdv,nob,chisqr,chisql,tstud] = get_gritas_data(fn,Res.globalProps.obType)
-    else:
-       [lon,lat,lev,mean,stdv,nob] = get_gritas_data(fn,Res.globalProps.obType)
-    chnindx=lev;
+
+    foo=files(fname)
+    foo.fromGritas(Res.globalProps.obType,Res.globalProps.stats.confidence,'index')# Res.globalProps.instruments.instrument.vertUnits)
 
 
+
+    # Iterate over all regions of interest specified in global params
     for nr,region in enumerate(Res.globalProps.regions):
-      [reglat,reglon] = reg_def(region);
-      [ilat,ilon] = subsetreg(reglat,reglon, lat,lon)
 
+        # Lookup 'region' from universe
+        reglat = Res.universe[region].latitude
+        reglon = Res.universe[region].longitude      
+        
+        # Subset of lat/lon defined by region...
+        # Will need to adjust these, as they leave out boundary values of region
+        ilat = [l for l in foo.loc['lat'] if reglat._min <= l and l <= reglat._max]
+        ilon = [l for l in foo.loc['lon'] if reglon._min <= l and l <= reglon._max]
+        
 
-      for ns,stat in enumerate(Res.globalProps.stats.measures):
-         if stat == 'sum' or stat == 'mean':
-            this = vaccum(stat,Res.globalProps.obCnt,mean[:,ilat,:],nob[:,ilat,:])
-            total[:,ii,nr,ns] = Res.globalProps.stats.scale*this
-         if stat == 'stdv':
-            this = vaccum(stat,Res.globalProps.obCnt,stdv[:,ilat,:],nob[:,ilat,:])
-            total[:,ii,nr,ns] = Res.globalProps.stats.scale*this
+        for ns,stat in enumerate(Res.globalProps.stats.measures):
+          
+            if stat == 'sum' or stat == 'mean':
+                this = vaccum(stat,Res.globalProps.obCnt,mean[:,ilat,:],nob[:,ilat,:])
+                total[:,ii,nr,ns] = Res.globalProps.stats.scale*this
+            if stat == 'stdv':
+                this = vaccum(stat,Res.globalProps.obCnt,stdv[:,ilat,:],nob[:,ilat,:])
+                total[:,ii,nr,ns] = Res.globalProps.stats.scale*this
+                
+            if Res.globalProps.stats.confidence:
+                [confl,confr,studt] = getconf(Res.globalProps.obCnt,nob[:,ilat,:],chisql[:,ilat,:],chisqr[:,ilat,:],tstud[:,ilat,:])
 
-         if Res.globalProps.stats.confidence:
-	    [confl,confr,studt] = getconf(Res.globalProps.obCnt,nob[:,ilat,:],chisql[:,ilat,:],chisqr[:,ilat,:],tstud[:,ilat,:])
+            continue
+        sys.exit()
 
-      # when only a single experiment is treated ...
-      if numExp==0:
-        if ns==0:
-           if valuesYaml['global']['monthly plot']==True:
-              yyyymm = str(yyyy)+mm
-              show_bars_monthly(lev,total[:,ii,nr,0],['b'],[Res.globalProps.obType],Res.globalProps.stats.scale,yyyymm)
-              pylab.savefig(Res.globalProps.nicknames[nx]+'_'+'monthly_'+Res.globalProps.obType+'_'+region+'_'+yyyymm+'.'+Res.globalProps.figType)
-        else:
-           if valuesYaml['global']['monthly plot']==True:
-              yyyymm = str(yyyy)+mm
-              show_bars_monthly(lev,total[:,ii,nr,:],Res.globalProps.colors,Res.globalProps.stats,Res.globalProps.stats.scale,yyyymm,chisql,chisqr,studt)
-              pylab.savefig(Res.globalProps.nicknames[nx]+'_'+'monthly_'+Res.globalProps.obType+'_'+region+'_'+yyyymm+'.'+Res.globalProps.figType)
-      else:  # one two experiments are treated (compares them) ...
-        if nx==0:  # store result
-           ii=index([Res.globalProps.stats.measures=='stdv'])
-           totals[:,:,:,0] = total[:,:,:,ii]
-        if nx==1:  # store result
-           yyyymm = str(yyyy)+mm
-           if valuesYaml['global']['compare monthly']['doit']==True:
-              if   valuesYaml['global']['compare monthly']['type']=='ratio':
-                 totals[:,:,:,0] = 100.0*(total[:,:,:,ii]/totals[:,:,:,0])
-                 stat=Res.globalProps.stats.measures[0]
-                 confl=confl*totals[:,ii,nr,0]
-                 confr=confr*totals[:,ii,nr,0]
-                 print confl
-                 anno=Res.globalProps.expID
-                 show_plot_monthly_one(lev,totals[:,ii,nr,0],anno,Res.globalProps.colors[0],'ratio',Res.globalProps.stats.scale,yyyymm,confl,confr,studt)
-              elif valuesYaml['global']['compare monthly']['type']=='difference':
-                 totals[:,:,:,0] = total[:,:,:,ii] - totals[:,:,:,0]
-                 stat=Res.globalProps.stats.measures[0]
-                 show_bars_monthly_one(lev,totals[:,ii,nr,0],Res.globalProps.colors[0],'difference',Res.globalProps.stats.scale,yyyymm,chisql,chisqr,studt)
-              else:
-                 totals[:,:,:,1] = total[:,:,:,ii]
-                 show_bars_monthly(lev,totals[:,ii,nr,:],Res.globalProps.colors,Res.globalProps.expID,Res.globalProps.stats.scale,yyyymm,chisql,chisqr,studt)
-              pylab.savefig(Res.globalProps.nicknames[1]+'X'+Res.globalProps.nicknames[0]+'_'+'monthly_'+Res.globalProps.obType+'_'+region+'_'+yyyymm+'.'+Res.globalProps.figType)
+        # when only a single experiment is treated ...
+        if numExp==0:
+            if ns==0:
+                if valuesYaml['global']['monthly plot']==True:
+                    yyyymm = str(yyyy)+mm
+                    show_bars_monthly(lev,total[:,ii,nr,0],['b'],[Res.globalProps.obType],Res.globalProps.stats.scale,yyyymm)
+                    pylab.savefig(Res.globalProps.nicknames[nx]+'_'+'monthly_'+Res.globalProps.obType+'_'+region+'_'+yyyymm+'.'+Res.globalProps.figType)
+            else:
+                if valuesYaml['global']['monthly plot']==True:
+                    yyyymm = str(yyyy)+mm
+                    show_bars_monthly(lev,total[:,ii,nr,:],Res.globalProps.colors,Res.globalProps.stats,Res.globalProps.stats.scale,yyyymm,chisql,chisqr,studt)
+                    pylab.savefig(Res.globalProps.nicknames[nx]+'_'+'monthly_'+Res.globalProps.obType+'_'+region+'_'+yyyymm+'.'+Res.globalProps.figType)
+        else:  # one two experiments are treated (compares them) ...
+            if nx==0:  # store result
+                ii=index([Res.globalProps.stats.measures=='stdv'])
+                totals[:,:,:,0] = total[:,:,:,ii]
+            if nx==1:  # store result
+                yyyymm = str(yyyy)+mm
+                if valuesYaml['global']['compare monthly']['doit']==True:
+                    if   valuesYaml['global']['compare monthly']['type']=='ratio':
+                        totals[:,:,:,0] = 100.0*(total[:,:,:,ii]/totals[:,:,:,0])
+                        stat=Res.globalProps.stats.measures[0]
+                        confl=confl*totals[:,ii,nr,0]
+                        confr=confr*totals[:,ii,nr,0]
+                        print confl
+                        anno=Res.globalProps.expID
+                        show_plot_monthly_one(lev,totals[:,ii,nr,0],anno,Res.globalProps.colors[0],'ratio',Res.globalProps.stats.scale,yyyymm,confl,confr,studt)
+                    elif valuesYaml['global']['compare monthly']['type']=='difference':
+                        totals[:,:,:,0] = total[:,:,:,ii] - totals[:,:,:,0]
+                        stat=Res.globalProps.stats.measures[0]
+                        show_bars_monthly_one(lev,totals[:,ii,nr,0],Res.globalProps.colors[0],'difference',Res.globalProps.stats.scale,yyyymm,chisql,chisqr,studt)
+                    else:
+                        totals[:,:,:,1] = total[:,:,:,ii]
+                        show_bars_monthly(lev,totals[:,ii,nr,:],Res.globalProps.colors,Res.globalProps.expID,Res.globalProps.stats.scale,yyyymm,chisql,chisqr,studt)
+                    pylab.savefig(Res.globalProps.nicknames[1]+'X'+Res.globalProps.nicknames[0]+'_'+'monthly_'+Res.globalProps.obType+'_'+region+'_'+yyyymm+'.'+Res.globalProps.figType)
 
 
 if numExp==0 and valuesYaml['global']['time series plot']==True:
