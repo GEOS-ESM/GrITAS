@@ -84,19 +84,50 @@ for ii,fname in enumerate(Res.globalProps.fileName):
         
         # Subset of lat/lon defined by region...
         # Will need to adjust these, as they leave out boundary values of region
-        ilat = [l for l in foo.loc['lat'] if reglat._min <= l and l <= reglat._max]
-        ilon = [l for l in foo.loc['lon'] if reglon._min <= l and l <= reglon._max]
-        
+        ilat = [n for n,l in enumerate(foo.loc['lat']) if reglat._min <= l and l <= reglat._max]
+        ilon = [n for n,l in enumerate(foo.loc['lon']) if reglon._min <= l and l <= reglon._max]
+
 
         for ns,stat in enumerate(Res.globalProps.stats.measures):
+
+            print(foo.nobs[0,ilat,0]) # no observations at lev[0], for all ilat latitudes and 0th longitude
+            print(foo.nobs[1,ilat,0]) # no observations at lev[0], for all ilat latitudes and 0th longitude
+            print(foo.nobs[2,ilat,0]) # no observations at lev[0], for all ilat latitudes and 0th longitude
+            print(foo.nobs[3,ilat,0]) 
           
+
+            X=foo.getStat(stat,foo.mean[:,ilat,:],thresh=Res.globalProps.obCnt,mask=foo.nobs[:,ilat,:])
+            print(X)
+            
+
+            this=None
             if stat == 'sum' or stat == 'mean':
-                this = vaccum(stat,Res.globalProps.obCnt,mean[:,ilat,:],nob[:,ilat,:])
-                total[:,ii,nr,ns] = Res.globalProps.stats.scale*this
+                this = vaccum(stat,Res.globalProps.obCnt,foo.mean[:,ilat,:],foo.nobs[:,ilat,:],Res.globalProps.stats.flavor)
             if stat == 'stdv':
-                this = vaccum(stat,Res.globalProps.obCnt,stdv[:,ilat,:],nob[:,ilat,:])
-                total[:,ii,nr,ns] = Res.globalProps.stats.scale*this
+                this = vaccum(stat,Res.globalProps.obCnt,foo.stdv[:,ilat,:],foo.nobs[:,ilat,:],Res.globalProps.stats.flavor)
+
+            print(foo.mean[3,ilat,:])
+
+            
+            print(foo.mean[3,ilat,:].sum())
+            for qq in ilat:
+                s=''
+                for zz in range(0,foo.getDim('lon')):
+                    s+='%s '%str(foo.mean[3,qq,zz])
+                print(s+"\n")
+            sys.exit()
                 
+                    
+
+            print(this)
+
+            print(this.sum())
+            print(foo.mean[:,ilat,:].sum())
+            sys.exit()
+
+            total[:,ii,nr,ns] = Res.globalProps.stats.scale*this
+
+
             if Res.globalProps.stats.confidence:
                 [confl,confr,studt] = getconf(Res.globalProps.obCnt,nob[:,ilat,:],chisql[:,ilat,:],chisqr[:,ilat,:],tstud[:,ilat,:])
 

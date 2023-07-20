@@ -60,10 +60,16 @@ class files(gritasVars):
 
     def __repr__(self):
         return "NetCDF file "+self.fname+" contains ( levels = %i, nlat = %i, nlon = %i )"%self.dims()
+
         
+    # Report dimension along a single axis of either levels, latitude, longitude
+    def getDim(self,var):
+        return len(self.loc[var])
+
+    # Report tuple of levels, latitude, longitude dimensions
     def dims(self):
         try:
-            return len(self.loc['lev']), len(self.loc['lat']), len(self.loc['lon'])
+            return self.getDim('lev'), self.getDim('lat'), self.getDim('lon')
         except:
             raise ValueError("Unable to report dims! - Must read from GrITAS file first!")
 
@@ -78,39 +84,96 @@ class files(gritasVars):
         self.read(f.variables[var],confidence,idx)
 
         f.close()
+
+        
+    def getStat(self,stat,var,thresh=None,mask=None):
+        levelStat=np.zeros(self.getDim('lev'))
+
+        for n,k in enumerate(levelStat):
+            print(np.asarray(mask[n,:,:]>thresh))
+            print(np.asarray(mask[n,:,:]>thresh).nonzero())
+            ID=np.where(mask[n,:,:]>thresh)
+
+            # where w/ just condition aliases to 'np.asarray(condition).nonzero()'
+            # nonzero() returns the indices of elements that are non-zero
+            # .. returns a tuple of arrays, one per dimension, containing the indices of the non-zero elements in that dimension
+
+            print("this is id")
+            print(ID)
+            print(type(ID))
+            # Nonzero lats/longs for this level 'n'
+            nonZeroLats = ID[0]
+            nonZeroLons = ID[1]
+
+            print(nonZeroLons)
+            print(type(var))
+            print(var)
+            this = var[n,:,:]
+            print(sum(this[ID]))
+            print(sum(var[n,:,:][ID]))
+            sys.exit()
+            # sum(var[n,:,:]  nob[n,:,:]>thresh)
+
+            # obsMask=np.ma.MaskedArray(var[n,:,:]) #, mask=self.nobs[n,:,:]>thresh)
+
+            # k=obsMask.sum()
+
+            # k=var[n,:,:][slic].sum()
+            k=var[n,:,:].sum()
+
+        return levelStat
+
+        # if stat == 'sum':
+        #     statSum()
+    #     if stat == 'mean':
+    #         statSum()/ptsPerLevel
+    #     if stat == 'stdv':
+    #         np.sqrt(statSum(arr*arr)/(ndim-1))
+
+
+    # def statSum(self):
+    #     levelStat=np.zeros(self.getDim('lev'))
+        
+    #     sum(var[k,:,:] if nob[k,:,:]>tresh)
+        
         
 def get_gritas_data():
     pass
 
 #.................................
-def vaccum(stype,tresh,var,nob,valsYaml):
-  nlev = size(var[:,0,0])
-  nlat = size(var[0,:,0])
-  nlon = size(var[0,0,:])
-  accum = zeros(nlev)
-  nccum = zeros(nlev)
-  ndim = nlat*nlon
-  for k in range(nlev):
-      id=where(nob[k,:,:]>tresh)
-      this = var[k,:,:]
-      nobs = nob[k,:,:]
-      nccum[k] = sum(nobs[id])
-      if stype=='sum':
-         accum[k] = sum(this[id])
-      if stype=='mean':
-         accum[k] = sum(this[id])
-         accum[k]=accum[k]/(ndim)
-      if stype=='stdv':
-         accum[k] = sum(this[id]*this[id])
-         accum[k]= sqrt(accum[k]/(ndim-1))
+def vaccum(stype,tresh,var,nob,flavor):
+    # print(stype)
+    # print(tresh)
+    # print(var)
+    # print(nob)
+    nlev = size(var[:,0,0])
+    nlat = size(var[0,:,0])
+    nlon = size(var[0,0,:])
+    accum = zeros(nlev)
+    nccum = zeros(nlev)
+    ndim = nlat*nlon
 
-  stat=valsYaml['global']['statistics flavor']
-  if stat == 'Impact per Ob' or stat == 'DFS per Ob':
-     accum = accum/nccum
-  if stat == 'Ob count':
-     accum = nccum
-  
-  return accum
+    # For each level, sum values for all latitude/longitude entries
+    for k in range(nlev):
+        id=where(nob[k,:,:]>tresh)
+        this = var[k,:,:]
+        nobs = nob[k,:,:]
+        nccum[k] = sum(nobs[id])
+        if stype=='sum':
+            accum[k] = sum(this[id])
+        if stype=='mean':
+            accum[k] = sum(this[id])
+            accum[k]=accum[k]/(ndim)
+        if stype=='stdv':
+            accum[k] = sum(this[id]*this[id])
+            accum[k]= sqrt(accum[k]/(ndim-1))
+            
+    if flavor == 'Impact per Ob' or flavor == 'DFS per Ob':
+        accum = accum/nccum
+    if flavor == 'Ob count':
+        accum = nccum
+        
+    return accum
 #.................................
 def getconf(tresh,nob,chisql,chisqr,tstud):
   nlev = size(nob[:,0,0])
