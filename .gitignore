@@ -22,3 +22,4 @@ CMakeUserPresets.json
 src/Applications/GrITAS_Plot/regions.yaml
 src/Applications/GrITAS_Plot/my_test/plot_util.py
 src/Applications/GrITAS_Plot/my_test/common.py
+src/Applications/GrITAS_Plot/my_test/*png

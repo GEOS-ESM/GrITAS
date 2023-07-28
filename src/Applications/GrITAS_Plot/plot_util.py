@@ -273,15 +273,18 @@ class globalProps(sharedFuncs):
 
 
     def fromYaml(self,yamlTop,**kwargs):
-        self.startDate = yamlTop['start date']
-        self.endDate   = yamlTop['end date']
-        self.nicknames = yamlTop['nicknames']
-        self.expID     = yamlTop['experiment identifier']
-        self.fileName  = yamlTop['file name']
-        self.obCnt     = yamlTop['ob count treshold for statistics']
-        self.obType    = yamlTop['obtype']
-        self.regions   = yamlTop['regions']
-        self.figType   = yamlTop['figure type']
+        self.startDate   = yamlTop['start date']
+        self.endDate     = yamlTop['end date']
+        self.nicknames   = yamlTop['nicknames']
+        # self.expID     = yamlTop['experiment identifier']
+        self.expID       = yamlTop.get('experiment identifier',[])
+        self.fileName    = yamlTop['file name']
+        self.obCnt       = yamlTop['ob count treshold for statistics']
+        self.obType      = yamlTop['obtype']
+        self.regions     = yamlTop['regions']
+        self.figType     = yamlTop['figure type']
+        self.monthlyPlot = yamlTop['monthly plot']
+        self.tSeriesPlot = yamlTop['time series plot']
         
         self.stats.fromYaml(yamlTop['statistics'])
         self.instruments.fromYaml(yamlTop['configure'],cls='INSTRUMENT') #instrument())
