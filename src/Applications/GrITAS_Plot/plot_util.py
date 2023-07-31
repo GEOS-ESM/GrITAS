@@ -135,10 +135,10 @@ class instrument(sharedFuncs):
         self.vertUnits=yamlTop['vertical units']
         return self
 
-class monthlyComparator(sharedFuncs):
-    def __init__(self,doit,typ='ratio'):
+class comparator(sharedFuncs):
+    def __init__(self,monthly,typ='ratio'):
         self.name='compare monthly'
-        self.doit=doit
+        self.monthly=monthly
         self.typ=typ
 
     def help(self):
@@ -148,10 +148,10 @@ class monthlyComparator(sharedFuncs):
             print("\t\t%i) %s"%(n+1,a))
 
     def toYaml(self):
-        return self.yamlStruc(('doit',self.doit), ('type', self.typ))
+        return self.yamlStruc(('monthly',self.monthly), ('type', self.typ))
         
     def fromYaml(self,yamlTop):
-        self.doit=yamlTop['doit']
+        self.monthly=yamlTop['monthly']
         self.typ=yamlTop['type']
         
     def serialize(self,yam):
@@ -222,8 +222,8 @@ class globalProps(sharedFuncs):
     monthly plot : bool
     time series plot : bool
 
-    <monthlyComparator>
-    doit : bool
+    <comparator>
+    monthly : bool
     type : str (among 'ratio', 'difference', 'trivial')
 
     <configure>
@@ -241,7 +241,7 @@ class globalProps(sharedFuncs):
     '''
 
     def __init__(self,instruments=NestedDict('configure',[instrument()]),
-                 comparator=monthlyComparator(True),**kwargs):
+                 comparator=comparator(True),**kwargs):
         self.name='global'
         self.startDate=kwargs.get('startDate')
         self.endDate=kwargs.get('endDate')
@@ -257,7 +257,7 @@ class globalProps(sharedFuncs):
 
         self.stats=Stats() #'Standard Deviation',True)
         self.instruments=instruments
-        self.comparatorMonthly=comparator
+        self.comparator=comparator
 
         self.parseWildCards()
 
@@ -288,7 +288,7 @@ class globalProps(sharedFuncs):
         
         self.stats.fromYaml(yamlTop['statistics'])
         self.instruments.fromYaml(yamlTop['configure'],cls='INSTRUMENT') #instrument())
-        self.comparatorMonthly.fromYaml(yamlTop['Comparator'])
+        self.comparator.fromYaml(yamlTop['Comparator'])
 
         self.parseWildCards()
 
@@ -306,7 +306,7 @@ class globalProps(sharedFuncs):
                                 ('monthly plot',                     self.monthlyPlot),
                                 ('time series plot',                 self.tSeriesPlot))
         toYaml.update({'statistics': self.stats.toYaml()})
-        toYaml.update({'Comparator': self.comparatorMonthly.toYaml()})
+        toYaml.update({'Comparator': self.comparator.toYaml()})
         toYaml.update({'configure': self.instruments.toYaml()})
 
         yam.writeObj({self.name: toYaml})

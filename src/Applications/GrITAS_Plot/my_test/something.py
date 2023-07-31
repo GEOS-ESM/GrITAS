@@ -41,7 +41,7 @@ Res=plot_util.Residual(glob=Global,universe=Regions)
 
 
 # Set temporal information
-pandasDates = pd.date_range(start=Res.globalProps.startDate, end=Res.globalProps.endDate, freq='D') #'MS')
+pandasDates = pd.date_range(start=Res.globalProps.startDate, end=Res.globalProps.endDate, freq='MS') #'D') #'MS')
 years = pandasDates.year; months = pandasDates.month
 
 
@@ -57,11 +57,11 @@ numExp = size(Res.globalProps.expID)  # number of experiments to handle
 
 
 print("Zeros: %i %i %i %i"%(nlev,numT,numReg,numStats))
-
+print("NumExp = %i"%numExp)
 
 allStats = zeros([nlev,numT,numReg,numStats])
-if numExp==2:
-    allStats = zeros([nlev,numT,numReg,2])
+compExp  = zeros([nlev,numT,numReg,2]) if numExp == 2 else None
+
 # total = zeros([nlev,numT,numReg,numStats])
 # if numExp==2:
 #    totals = zeros([nlev,numT,numReg,2])
@@ -115,44 +115,59 @@ for ii,fname in enumerate(Res.globalProps.fileName):
         #########
         yyyymm = str(yyyy)+mm
 
-        foo.plotInit(Res.globalProps.nicknames[nx],Res.globalProps.obType,region,Res.globalProps.stats.scale,typ='monthly',yrs=yyyy,mnths=mm)
-        foo.monthlyBars(allStats[:,ii,nr,:],stats=Res.globalProps.stats,instruments=Res.globalProps.instruments)
+         
+        
 
-        # Treat a single experiment
-        if numExp == 0 and Res.globalProps.monthlyPlot:
-            foo.monthlyBars(allStats[:,ii,nr,:],stats=Res.globalProps.stats,instruments=Res.globalProps.instruments)
+        ##### Treat a single experiment
+        # CE: ORIGINAL RT CODE HAD NUMEXP = 0 HERE; SHOULD THIS BE NUMEXP = 1 INSTEAD???
+        if numExp == 1:
+            foo.plotInit(Res.globalProps.nicknames[nx],Res.globalProps.obType,\
+                         region,Res.globalProps.stats.scale,typ='monthly',yrs=yyyy,mnths=mm)
+            if Res.globalProps.monthlyPlot:
+                foo.monthlyBars(allStats[:,ii,nr,:],stats=Res.globalProps.stats,instruments=Res.globalProps.instruments)
+                foo.saveFig()
+                plt.show()
+            else:
+                print("Found numExp = 1, but monthlyPlot is false - skipping monthlyBars plot")
+        
+        elif numExp == 2:
+            if nx==0:
+                # Get index of standard deviations
+                stdvIdx = np.argmax([s=='stdv' for s in Res.globalProps.stats.measures])
+                # ii=index([Res.globalProps.stats.measures=='stdv'])
+                totals[:,:,:,0] = allStats[:,:,:,stdvIdx]
+            if nx==1:
+
+                foo.plotInit(Res.globalProps.nicknames,Res.globalProps.obType,\
+                             region,Res.globalProps.stats.scale,typ='monthly',yrs=yyyy,mnths=mm)
+
+                if Res.globalProps.comparator.monthly:
+                    if Res.globalProps.comparator.typ == 'ratio':
+                        totals[:,:,:,0] = 100.0*(allStats[:,:,:,stdvIdx]/totals[:,:,:,0])
+                        stat=Res.globalProps.stats.measures[0]
+                        foo.confl=foo.confl*totals[:,ii,nr,0] #should 'ii' be 'stdvIdx' too??
+                        foo.confr=foo.confr*totals[:,ii,nr,0] #should 'ii' be 'stdvIdx' too??
+                        print foo.confl
+                        anno=Res.globalProps.expID
+                        show_plot_monthly_one(foo.lev,totals[:,ii,nr,0],anno,Res.globalProps.colors[0],\
+                                              'ratio',Res.globalProps.stats.scale,yyyymm,foo.confl,foo.confr,foo.studt)
+                    elif Res.globalProps.comparator.typ == 'difference':
+                        totals[:,:,:,0] = allStats[:,:,:,stdvIdx] - totals[:,:,:,0]
+                        # show_bars_monthly_one(foo.lev,totals[:,ii,nr,0],Res.globalProps.colors[0],\
+                        #                       'difference',Res.globalProps.stats.scale,yyyymm,chisql,chisqr,foo.studt)
+                        foo.monthlyBars(totals[:,ii,nr,0],stats=Res.globalProps.stats,\
+                                        instruments=Res.globalProps.instruments,flavor='difference')
+                    else:
+                        totals[:,:,:,1] = allStats[:,:,:,stdvIdx] #should this 'stdvIdx' be 'ii'??
+                        # show_bars_monthly(foo.lev,totals[:,ii,nr,:],Res.globalProps.colors,\
+                        #                   Res.globalProps.expID,Res.globalProps.stats.scale,yyyymm,chisql,chisqr,foo.studt)
+                        foo.monthlyBars(totals[:,ii,nr,:],stats=Res.globalProps.stats,\
+                                        instruments=Res.globalProps.instruments,flavor=Res.globalProps.expID)
+
+                    foo.saveFig()
+        
         else:
-            pass
-
-
-        foo.saveFig()
-        plt.show()
-        sys.exit()
-
-
-
-#         else:  # one two experiments are treated (compares them) ...
-#             if nx==0:  # store result
-#                 ii=index([Res.globalProps.stats.measures=='stdv'])
-#                 totals[:,:,:,0] = total[:,:,:,ii]
-#             if nx==1:  # store result
-#                 if valuesYaml['global']['compare monthly']['doit']==True:
-#                     if   valuesYaml['global']['compare monthly']['type']=='ratio':
-#                         totals[:,:,:,0] = 100.0*(total[:,:,:,ii]/totals[:,:,:,0])
-#                         stat=Res.globalProps.stats.measures[0]
-#                         foo.confl=foo.confl*totals[:,ii,nr,0]
-#                         foo.confr=foo.confr*totals[:,ii,nr,0]
-#                         print foo.confl
-#                         anno=Res.globalProps.expID
-#                         show_plot_monthly_one(foo.lev,totals[:,ii,nr,0],anno,Res.globalProps.colors[0],'ratio',Res.globalProps.stats.scale,yyyymm,foo.confl,foo.confr,foo.studt)
-#                     elif valuesYaml['global']['compare monthly']['type']=='difference':
-#                         totals[:,:,:,0] = total[:,:,:,ii] - totals[:,:,:,0]
-#                         stat=Res.globalProps.stats.measures[0]
-#                         show_bars_monthly_one(foo.lev,totals[:,ii,nr,0],Res.globalProps.colors[0],'difference',Res.globalProps.stats.scale,yyyymm,chisql,chisqr,foo.studt)
-#                     else:
-#                         totals[:,:,:,1] = total[:,:,:,ii]
-#                         show_bars_monthly(foo.lev,totals[:,ii,nr,:],Res.globalProps.colors,Res.globalProps.expID,Res.globalProps.stats.scale,yyyymm,chisql,chisqr,foo.studt)
-#                     pylab.savefig(Res.globalProps.nicknames[1]+'X'+Res.globalProps.nicknames[0]+'_'+'monthly_'+Res.globalProps.obType+'_'+region+'_'+yyyymm+'.'+Res.globalProps.figType)
+            raise ValueError("Unable to handle more than 2 experiments at once!")
 
 
 
@@ -162,6 +177,7 @@ for ii,fname in enumerate(Res.globalProps.fileName):
 # print("***")
 # print(allStats[0,0,0,0])
 
+sys.exit(0)
 
 # Case where we aren't looking at a specific experiment and, rather, desire a time series plot
 if numExp==0 and Res.globalProps.tSeriesPlot:
