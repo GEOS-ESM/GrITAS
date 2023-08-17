@@ -16,7 +16,7 @@ parser.add_option("-e","--prefExpDir",type=str,default='./',
                   help='Prefix of directories containing measurements (default = "./")')
 parser.add_option("-g","--prefGrITAS",type=str,default='./',
                   help='Prefix of GrITAS src (default = ./)')
-parser.add_option("-l","--sysObsListPrefix",type=str,default='foo.list',
+parser.add_option("-l","--expObsListPrefix",type=str,default='foo.list',
                   help='Instrument/Date/ExpID list file prefix (default = foo)')
 parser.add_option("-s","--system",type=str,default='',
                   help='Modeling system (default = '')')
@@ -36,11 +36,11 @@ system=options.system.upper()
 
 
 # List of instruments/dates/expIDs'
-# Determined by opening each sysObsList file corresponding to desired synoptic time,
+# Determined by opening each expObsList file corresponding to desired synoptic time,
 # ..and successively using pandas.merge (def. inner) to determine intersection of all available instrument data
 instrDatesIDs=None
 for n,t in enumerate(options.synopticTimes.split('/')):
-    with open(options.sysObsListPrefix+'.H%s.list'%t,'r') as f:
+    with open(options.expObsListPrefix+'.H%s.list'%t,'r') as f:
         fromCSV=pd.read_csv(f,' ')
         instrDatesIDs=fromCSV if n == 0 else pd.merge(instrDatesIDs,fromCSV,how='inner')
 
