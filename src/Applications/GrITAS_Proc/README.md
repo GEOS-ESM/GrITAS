@@ -14,13 +14,13 @@ unlimit stacksize
 ### Description of Scripts
 1. ```driver.sh```
 2. ```build-yaml.py```
-3. ```grit.py```
+3. ```grdstats.py```
 
 Unless specified otherwise, a verbose explanation of each script and its input arguments is achieved by calling ```driver.sh``` without any arguments, and passing **-h** to each ```*.py``` script. The functionality is described below.
 
 ### ```driver.sh```
 #### Purpose:
-Determine all accessible ***diag***-type **ods** files for a user-specified observing system within two specified calendar dates (inclusive), and across four synoptic times - `00Z, 06Z, 12Z, 18Z`
+Determine all accessible ***diag***-type **ods** files for a user-specified experiment identifier within two specified calendar dates (inclusive), and across four synoptic times - `00Z, 06Z, 12Z, 18Z`
 
 | Arguments        | Explanation   | Notes  |
 | ---------------- |:-------------:| -----:|
@@ -30,13 +30,13 @@ Determine all accessible ***diag***-type **ods** files for a user-specified obse
 | YR FIN   | year of final observations   | [See above] |
 | MNTH FIN | month of final observations  | [See above] |
 | DAY FIN  | day of final observations    | [See above] |
-| OBS SYS  | Observing system             | Currently supported: GEOSIT, GEOSFP, MERRA2
+| EXPID    | experiment identifier        | Currently supported: GEOSIT, GEOSFP, MERRA2
 
 Upon error-free termination, four space-delimited `list` files will be generated, one for each synoptic time, cataloging all instrument `*ods` files available within the specified date range. Each list is of the form:
 ```
-<OBS SYS>.<YYYYMMDD INI>-<YYYYMMDD FIN>.H<SYNOPTIC TIME>.list
+<EXPID>.<YYYYMMDD INI>-<YYYYMMDD FIN>.H<SYNOPTIC TIME>.list
 ```
-Example -- GEOSIT observing system between 2017-01-01 & 2017-01-03:
+Example -- GEOSIT experiment identifier between 2017-01-01 & 2017-01-03:
 ```bash
           GEOSIT.20170101-20170103.H00.list
           GEOSIT.20170101-20170103.H06.list
@@ -51,7 +51,7 @@ airs_aqua 20170101 d5294_geosit_jan18
 ```
 Being a space-delimited ASCII file with lines of variable character length, such files may be dense to read, especially for large date ranges. However, the format is easily parsed by the python scripts that follow.
 
-__Important__: the precise location of observations corresponding to each supported observing system is hardcoded within the local bash function
+__Important__: the precise location of observations corresponding to each supported experiment identifier is hardcoded within the local bash function
 ```bash
 obsSysLoc()
 ```
@@ -81,10 +81,10 @@ Options:
                         = "./")
   -g PREFGRITAS, --prefGrITAS=PREFGRITAS
                         Prefix of GrITAS src (default = ./)
-  -l SYSOBSLISTPREFIX, --sysObsListPrefix=SYSOBSLISTPREFIX
+  -l EXPOBSLISTPREFIX, --expObsListPrefix=EXPOBSLISTPREFIX
                         Instrument/Date/ExpID list file prefix (default = foo)
-  -s SYSTEM, --system=SYSTEM
-                        Modeling system (default = )
+  -s EXPID, --exp=EXPID
+                        Experiment identifier (default = )
   -t SYNOPTICTIMES, --synopticTimes=SYNOPTICTIMES
                         Right-justified, two integer synoptic times -
                         delimited via "/" (default = 00/06/12/18)
@@ -95,15 +95,15 @@ Options:
 | ---------------- |:-------------:| -----:|
 | CONFIDENCE       | Confidence level of measurements (*need to check this one*) | Defaults to `0.95` |
 | DATE             | Forward slash delimited starting & ending dates | Format `YYYYMMDD/YYYYMMDD`, with `[INI DATE]`/`[FIN DATE]` |
-| PREFEXPDIR       | Directory prefix wherein observations (ods files) are located | User must currently turn to `obsSysLoc()` function of `driver.sh` for precise locations associated with support observing systems.|
+| PREFEXPDIR       | Directory prefix wherein observations (ods files) are located | User must currently turn to `obsSysLoc()` function of `driver.sh` for precise locations associated with supported experiment identifiers.|
 | PREFGRITAS       | Location of GrITAS source code   | User specified |
-| SYSOBSLISTPREFIX | Prefix of list files produced by `driver.sh`  | Example: `GEOSIT.20170101-20170103` for the GEOSIT observing system between 2017-01-01 & 2017-01-03 |
-| SYSTEM           | Observing system    | Currently supported: GEOSIT, GEOSFP, MERRA2 |
+| EXPOBSLISTPREFIX | Prefix of list files produced by `driver.sh`  | Example: `GEOSIT.20170101-20170103` for the GEOSIT experiment identifier between 2017-01-01 & 2017-01-03 |
+| EXPID            | experiment identifier | Currently supported: GEOSIT, GEOSFP, MERRA2 |
 | SYNOPTICTIMES    | Forward slash delimited synoptic times to consider | Any combination within {`00`,`06`,`12`,`18`} may be selected; if option is omitted at command line, all four synoptic times will be considered (templated within yaml generated).
 | dryRun           | Debug | No additional argument needed.
 
 Successful execution will produce a single `yaml` file. Operationally,
-* `build-yaml.py` will consider the intersection of each system observation list file (e.g. `$SYSOBSLISTPREFIX.H<hh>.list` with `<hh>` among each of chosen `SYNOPTICTIMES`)
+* `build-yaml.py` will consider the intersection of each experiment's observation list file (e.g. `$EXPOBSLISTPREFIX.H<hh>.list` with `<hh>` among each of chosen `SYNOPTICTIMES`)
 * this intersection establishes a set of instruments common across each synoptic time and date range
 * for each such instrument, `build-yaml.py` checks that a corresponding resource control (`*rc`) exists
 * instruments that remain have an `*rc` file and are included in output `yaml` file only if unique (avoids unnecessary repetition)
@@ -124,13 +124,13 @@ convObs=['upconv','upconv2','gps_100lev']
 <br>
 <br>
 
-### ```grit.py```
-#### Purpose:
-Drive `gritas.x` for an observing system for user-selected synoptic times within a range of (inclusive) dates. <br>**Most importantly**, `build-yaml.py` and `grit.py` are envisioned to work in unison so as to abstract away cumbersome creation of command line input to `gritas.x`. Provided correct input is given to `build-yaml.py`, a user need only do the following:
+### ```grdstats.py```
+#### Purpose: <"gridded statistics">
+Drive `gritas.x` for an experiment identifier for user-selected synoptic times within a range of (inclusive) dates. <br>**Most importantly**, `build-yaml.py` and `grdstats.py` are envisioned to work in unison so as to abstract away cumbersome creation of command line input to `gritas.x`. Provided correct input is given to `build-yaml.py`, a user need only do the following:
 ```bash
-./grit.py foo.gritas.yml
+./grdstats.py foo.gritas.yml
 ```
-**Under the hood**, `grit.py` forms the following chain of arguments to pass to `gritas.x` for each instrument available for the specified observing system and range of dates:
+**Under the hood**, `grdstats.py` forms the following chain of arguments to pass to `gritas.x` for each instrument available for the specified experiment identifier and range of dates:
 ```bash
 gritas.x  -nopassive -<RESID> -rc $PREFGRITAS/Components/gritas/etc/gritas_<INSTRUMENT>.rc \
     -conf $CONFIDENCE -o <OUTDIR> <ODS FILES>
@@ -146,9 +146,9 @@ where
 
 Generated NetCDF files from call(s) to `gritas.x` are populated at current working directory according to
 ```bash
-<SYSTEM>/<RESIDUAL>/<YYYYMMDD INI>-<YYYYMMDD FIN>/<INSTRUMENT>_gritas.nc4
+<EXPID>/<RESIDUAL>/<YYYYMMDD INI>-<YYYYMMDD FIN>/<INSTRUMENT>_gritas.nc4
 ```
-Example NetCDF files produced from GEOSIT observing system between 2017-01-01 & 2017-01-03:
+Example NetCDF files produced from GEOSIT experiment identifier between 2017-01-01 & 2017-01-03:
 ```bash
 ./GEOSIT/oma/20170101-20170103/amsua_metop-a_gritas.nc4
 ./GEOSIT/oma/20170101-20170103/amsua_metop-b_gritas.nc4
@@ -158,5 +158,5 @@ Example NetCDF files produced from GEOSIT observing system between 2017-01-01 & 
 ```
 
 ###### To-Do: Improvements
-- [ ] Allow for user-specified prefix location of NetCDF files, rather than `./` where `grit.py` is executed
+- [ ] Allow for user-specified prefix location of NetCDF files, rather than `./` where `grdstats.py` is executed
 - [ ] Allow user to specify residuals
