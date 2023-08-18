@@ -1,16 +1,16 @@
 #!/bin/bash
 
-# Report/set location of observation system data
-#-------------------------------------------------
-obsSysLoc()
+# Report/set location of experiment identifier data
+#--------------------------------------------------
+expIDLoc()
 {
     if [ $# -eq 0 ]; then
-	echo "Accepted observing systems: GEOSIT, GEOSFP, MERRA2"
+	echo "Accepted experiment identifiers: GEOSIT, GEOSFP, MERRA2"
     elif [ $1 == 'GEOSIT' ]; then echo "/home/dao_ops/d5294_geosit_jan18/run/.../archive/obs"
     elif [ $1 == 'GEOSFP' ]; then echo "/home/dao_ops/f516_fp/run/.../archive/obs"
     elif [ $1 == 'MERRA2' ]; then echo "/home/dao_ops/d5124_m2_jan10/run/.../archive/obs"
     else
-	echo "Unsupported observing system"
+	echo "Unsupported experiment identifier"
 	exit 2
     fi
 }
@@ -23,7 +23,7 @@ getList()
     elif [ $1 == 'geosfp' ]; then echo GEOSFP
     elif [ $1 == 'merra2' ]; then echo MERRA2
     else
-	echo "Unmatched instrument = $1"
+	echo "Unmatched experiment identifier $1 when setting list prefix"
 	exit 1
     fi
 }
@@ -41,8 +41,8 @@ verbose()
 
 
 if [ $# -ne 7 ]; then
-    echo "Usage: $0 <YR INI> <MNTH INI> <DAY INI> <YR FIN> <MNTH FIN> <DAY FIN> <OBS SYS>"
-    echo `obsSysLoc`
+    echo "Usage: $0 <YR INI> <MNTH INI> <DAY INI> <YR FIN> <MNTH FIN> <DAY FIN> <EXPID>"
+    echo `expIDLoc`
     exit 1
 fi
 
@@ -53,9 +53,9 @@ YR_I=$1; MNTH_I=$2; DAY_I=$3
 YR_F=$4; MNTH_F=$5; DAY_F=$6
 
 
-# Location of observations
-#--------------------------
-BASE=$(obsSysLoc $7); STATUS=$?
+# Location of observations associated with EXPID
+#-----------------------------------------------
+BASE=$(expIDLoc $7); STATUS=$?
 if [ $STATUS -ne 0 ]; then
     echo $BASE
     exit $STATUS
