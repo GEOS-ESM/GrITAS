@@ -54,7 +54,7 @@ class gritasFig:
                                           str(self.yrs)+self.mnths,self.figType)\
             if self.typ == 'monthly' else\
                '%s_%s_%s_%s_%s.%s'%(self.prefix,self.typ,self.obType,self.region,'FIXME-DUMSTAT',self.figType)
-        
+
         self.fig = plt.figure(figsize=(8,10)) if self.typ == 'monthly' else plt.figure(figsize=(10,10))
         self.ax=self.fig.gca()
         self.ax.set_facecolor('#CECECE')
@@ -66,11 +66,12 @@ class gritasFig:
         self.error_config = {'ecolor': '0.3'}
 
     def monthlyBars(self,allStats,stats=None,instruments=[],flavor='None'):
-        
+
         self.commonFigSetup(allStats,stats.units,instruments,flavor=flavor)
+
         for ns, stat in enumerate(stats.measures):
-            omean=allStats[:,0] if len(stats.measures) == 1 else allStats[:,ns]
-        
+            omean=allStats[:,ns]
+
             pos = arange(len(omean))+ns*self.bar_width # hack to center the labels on the center of the bar
 
             kwargs={'alpha': self.opacity,'color': stats.colors[ns],'label': stat,\
@@ -89,7 +90,7 @@ class gritasFig:
         self.ax.legend(loc='lower left')
         self.ax.set_title(str(self.yrs)+self.mnths)
 
-    
+
     def tSeries(self,allStats,stats=None,instruments=[],flavor='None'):
         # Capture minval/maxval
         minval,maxval = self.commonFigSetup(allStats,stats.units,instruments,flavor=flavor)
@@ -113,34 +114,34 @@ class gritasFig:
         self.ax.set_xticklabels(int32(yyyymm[x1]), minor=False, rotation=45)
 
 
-    def monthlyPlot(self,allStats,stats=None,instruments=[],annotation=''):
+    def monthlyPlot(self,case,allStats,stats=None,instruments=[],annotation=''):
         # Capture minval/maxval
         minval, maxval = self.commonFigSetup(allStats,stats.units,instruments,flavor=annotation)
-        
+
         midpnt = minval+0.5*(maxval-minval)
 
         pos = arange(len(allStats)) #+nf*bar_width
 
-        # Set the x-label
-        mylabel = '(x %s)' % str(1/scale)
-        if units != "1":
-            mylabel = units if units == "%" else mylabel + ' (%s' % units + ')'
-        self.ax.set_xlabel(myLabel,fontsize=12)
+        # # Set the x-label
+        # mylabel = '(x %s)' % str(1/scale)
+        # if units != "1":
+        #     mylabel = units if units == "%" else mylabel + ' (%s' % units + ')'
+        # self.ax.set_xlabel(myLabel,fontsize=12)
 
 
         if stats.confidence:
             # xerr based on case
-            xerr = self.studt if case == 'difference' or case == 'mean' else [confl,confr]
+            xerr = self.studt if case == 'difference' or case == 'mean' else [self.confl,self.confr]
 
             if case == 'difference':
                 self.ax.plot(zeros(len(allStats)), pos, color='k', lw=1, alpha=0.8)
             if case == 'ratio':
                 refline=midpnt*ones(len(allStats))
                 self.ax.plot(refline, pos, color='k', lw=1, alpha=0.8)
-                
-                self.ax.set_suptitle('CTL: %s'%annotation[0], x=0.125, y=0.93, ha='left', fontsize=14)
+
+                self.fig.suptitle('CTL: %s'%annotation[0], x=0.125, y=0.93, ha='left', fontsize=14)
                 self.ax.set_title('EXP: %s'%annotation[1], loc='left', fontsize=14)
-                self.ax.annotate(obtype.upper(), xy=(maxval-0.06*maxval,amax(pos)-0.5), 
+                self.ax.annotate(self.obType.upper(), xy=(maxval-0.06*maxval,amax(pos)-0.5),
                                  size=12, ha='left', va="bottom")
 
             # Plot errorbars regardless of case
@@ -171,7 +172,7 @@ class gritasFig:
         for label in self.ax.get_xticklabels():
             label.set_fontsize(self.maxLabelSize) #10
             label.set_fontweight('bold')
-        
+
         yticks = range(0,self.getDim('lev'))
         self.ax.margins(y=0)
         for label in self.ax.get_yticklabels():
@@ -222,9 +223,9 @@ class gritasVars:
         elif latSlice: var = var[:,latSlice,:]
         elif lonSlice: var = var[:,:,lonSlice]
         else:          var = var[:,:,:]
-        
+
         return var
-            
+
 
 
 class Gritas(gritasVars,gritasFig):
@@ -247,7 +248,7 @@ class Gritas(gritasVars,gritasFig):
     def __repr__(self):
         return "NetCDF file "+self.fname+" contains ( levels = %i, nlat = %i, nlon = %i )"%self.dims()
 
-        
+
     # Report dimension along a single axis of either levels, latitude, longitude
     def getDim(self,var):
         return len(self.loc[var])
@@ -271,7 +272,7 @@ class Gritas(gritasVars,gritasFig):
 
         f.close()
         return self
-        
+
 
     def getStat(self,stat,levSlice=None,latSlice=None,lonSlice=None,threshold=None,mask='nobs'):
         # Check for valid statistic
@@ -303,7 +304,7 @@ class Gritas(gritasVars,gritasFig):
         return levelStat
 
 
-    def getConf(self,levSlice=None,latSlice=None,lonSlice=None,threshold=None):
+    def getConfidence(self,levSlice=None,latSlice=None,lonSlice=None,threshold=None):
         # Slice class member 'nobs'
         nobs = self.sliceVar(self.nobs,levSlice,latSlice,lonSlice)
         # Convenience
@@ -330,37 +331,3 @@ class Gritas(gritasVars,gritasFig):
 
     def plotInit(self,prefix,obType,region,scale,typ,yrs,mnths):
         gritasFig.__init__(self,prefix,obType,region,scale,typ,yrs,mnths)
-        
-
-#.................................
-def vaccum(stype,tresh,var,nob,flavor):
-    nlev = size(var[:,0,0])
-    nlat = size(var[0,:,0])
-    nlon = size(var[0,0,:])
-    accum = zeros(nlev)
-    nccum = zeros(nlev)
-    ndim = nlat*nlon
-
-    # For each level, sum values for all latitude/longitude entries
-    for k in range(nlev):
-        id=where(nob[k,:,:]>tresh)
-        this = var[k,:,:]
-        nobs = nob[k,:,:]
-        nccum[k] = sum(nobs[id])
-        if stype=='sum':
-            accum[k] = sum(this[id])
-        if stype=='mean':
-            accum[k] = sum(this[id])
-            accum[k]=accum[k]/(ndim)
-        if stype=='stdv':
-            accum[k] = sum(this[id]*this[id])
-            accum[k]= sqrt(accum[k]/(ndim-1))
-            
-    if flavor == 'Impact per Ob' or flavor == 'DFS per Ob':
-        accum = accum/nccum
-    if flavor == 'Ob count':
-        accum = nccum
-        
-    return accum
-#.................................
-

@@ -50,122 +50,112 @@ years = pandasDates.year; months = pandasDates.month
 tmpFile = Gritas(Res.globalProps.fileName[0])
 nlev, nlat, nlon = tmpFile.fromGritas(Res.globalProps.obType,Res.globalProps.stats.confidence,'index').dims()
 
-numT = size(years)   # number of times to process
+numMnths = size(years)   # number of times to process
 numReg = size(Res.globalProps.regions) # number of regions
 numStats = len(Res.globalProps.stats.measures)   # number of statitics to calculate
 numExp = size(Res.globalProps.expID)  # number of experiments to handle
 
 
-print("Zeros: %i %i %i %i"%(nlev,numT,numReg,numStats))
-print("NumExp = %i"%numExp)
+# Check each experiment has a file per month
 
-allStats = zeros([nlev,numT,numReg,numStats])
-compExp  = zeros([nlev,numT,numReg,2]) if numExp == 2 else None
 
-# total = zeros([nlev,numT,numReg,numStats])
-# if numExp==2:
-#    totals = zeros([nlev,numT,numReg,2])
 
+# allStats = zeros([nlev,numMnths,numReg,numStats])
+# compExp  = zeros([nlev,numMnths,numReg,2]) if numExp == 2 else None
+
+allStats = zeros([nlev,numExp,numReg,numStats])
+compExp  = zeros([nlev,numExp,numReg,2]) if numExp == 2 else None
+
+# allStats = zeros([nlev,numMnths,numReg,numStats,numExp])
+# compExp  = zeros([nlev,numStats,2]) if numExp == 2 else None
 
 for ii,fname in enumerate(Res.globalProps.fileName):
   for nx,expid in enumerate(filter(None,Res.globalProps.expID)):
 
-    yyyy = years[ii]
-    mm = months[ii]
+    yyyy = years[0] #[ii]
+    mm = months[0] #[ii]
     mm =  str(mm).rjust(2, '0')
 
 
-    foo=Gritas(fname)
-    foo.fromGritas(Res.globalProps.obType,Res.globalProps.stats.confidence,'index')# Res.globalProps.instruments.instrument.vertUnits)
+    datGritas=Gritas(fname)
+    datGritas.fromGritas(Res.globalProps.obType,Res.globalProps.stats.confidence,'index')
 
     # Check for matching dimensions
-    # exceptions.dims(foo,tmpFile)
-    if foo.dims() != tmpFile.dims():
-        raise ValueError("Input file [ %s ] of dimensions (%i,%i,%i) does not match dimensions of template file (%i,%i,%i)"%(fname,foo.dims(),tmpFile.dims()))
+    if datGritas.dims() != tmpFile.dims():
+        raise ValueError("Incompatible dimensions!\n\t - %s\n\t - %s"%(datGritas,tmpFile))
+
 
     # Iterate over all regions of interest specified in global params
     for nr,region in enumerate(Res.globalProps.regions):
 
         # Lookup 'region' from universe
         reglat = Res.universe[region].latitude
-        reglon = Res.universe[region].longitude      
-        
+        reglon = Res.universe[region].longitude
+
         # Subset of lat/lon defined by region...
         # Will need to adjust these, as they leave out boundary values of region
-        ilat = [n for n,l in enumerate(foo.loc['lat']) if reglat._min <= l and l <= reglat._max]
-        ilon = [n for n,l in enumerate(foo.loc['lon']) if reglon._min <= l and l <= reglon._max]
+        latSubset = [n for n,l in enumerate(datGritas.loc['lat']) if reglat._min <= l and l <= reglat._max]
+        lonSubset = [n for n,l in enumerate(datGritas.loc['lon']) if reglon._min <= l and l <= reglon._max]
 
 
         # Iterate over desired stats
         for ns,stat in enumerate(Res.globalProps.stats.measures):
+            print(shape(allStats[:,ii,nr,ns]))
+            print(shape(datGritas.getStat(stat,latSlice=latSubset,threshold=Res.globalProps.obCnt,mask='nobs')))
+            allStats[:,ii,nr,ns]=(Res.globalProps.stats.scale*datGritas.getStat(stat,latSlice=latSubset,threshold=Res.globalProps.obCnt,mask='nobs'))
 
-            allStats[:,ii,nr,ns]=(Res.globalProps.stats.scale*\
-                                  foo.getStat(stat,latSlice=ilat,\
-                                              threshold=Res.globalProps.obCnt,mask='nobs'))
-            
             # Grab statistics test scores
             if Res.globalProps.stats.confidence:
-                foo.getConf(latSlice=ilat,threshold=Res.globalProps.obCnt)
+                datGritas.getConfidence(latSlice=latSubset,threshold=Res.globalProps.obCnt)
 
-        print(shape(allStats))
+        print("SHAPE OF STATS: "+str(shape(allStats)))
         print(ii)
         print(nr)
-        #########
-        # GET TO WORK W/ FIGURES
-        #########
-        yyyymm = str(yyyy)+mm
 
-         
-        
 
         ##### Treat a single experiment
         # CE: ORIGINAL RT CODE HAD NUMEXP = 0 HERE; SHOULD THIS BE NUMEXP = 1 INSTEAD???
         if numExp == 1:
-            foo.plotInit(Res.globalProps.nicknames[nx],Res.globalProps.obType,\
-                         region,Res.globalProps.stats.scale,typ='monthly',yrs=yyyy,mnths=mm)
+            datGritas.plotInit(Res.globalProps.nicknames[nx],Res.globalProps.obType,\
+                               region,Res.globalProps.stats.scale,typ='monthly',yrs=yyyy,mnths=mm)
             if Res.globalProps.monthlyPlot:
-                foo.monthlyBars(allStats[:,ii,nr,:],stats=Res.globalProps.stats,instruments=Res.globalProps.instruments)
-                foo.saveFig()
+                datGritas.monthlyBars(allStats[:,ii,nr,:],stats=Res.globalProps.stats,instruments=Res.globalProps.instruments)
+                datGritas.saveFig()
                 plt.show()
             else:
                 print("Found numExp = 1, but monthlyPlot is false - skipping monthlyBars plot")
-        
+
         elif numExp == 2:
             if nx==0:
                 # Get index of standard deviations
                 stdvIdx = np.argmax([s=='stdv' for s in Res.globalProps.stats.measures])
-                # ii=index([Res.globalProps.stats.measures=='stdv'])
-                totals[:,:,:,0] = allStats[:,:,:,stdvIdx]
+                compExp[:,:,:,0] = allStats[:,:,:,stdvIdx]
             if nx==1:
 
-                foo.plotInit(Res.globalProps.nicknames,Res.globalProps.obType,\
-                             region,Res.globalProps.stats.scale,typ='monthly',yrs=yyyy,mnths=mm)
-
+                datGritas.plotInit(Res.globalProps.nicknames,Res.globalProps.obType,\
+                                   region,Res.globalProps.stats.scale,typ='monthly',yrs=yyyy,mnths=mm)
+                print("UGH")
                 if Res.globalProps.comparator.monthly:
                     if Res.globalProps.comparator.typ == 'ratio':
-                        totals[:,:,:,0] = 100.0*(allStats[:,:,:,stdvIdx]/totals[:,:,:,0])
-                        stat=Res.globalProps.stats.measures[0]
-                        foo.confl=foo.confl*totals[:,ii,nr,0] #should 'ii' be 'stdvIdx' too??
-                        foo.confr=foo.confr*totals[:,ii,nr,0] #should 'ii' be 'stdvIdx' too??
-                        print foo.confl
-                        anno=Res.globalProps.expID
-                        show_plot_monthly_one(foo.lev,totals[:,ii,nr,0],anno,Res.globalProps.colors[0],\
-                                              'ratio',Res.globalProps.stats.scale,yyyymm,foo.confl,foo.confr,foo.studt)
+                        # print(allStats[:,:,:,stdvIdx])
+                        # print(compExp[:,:,:,0])
+                        print("stdvIdx = %i"%stdvIdx)
+                        print(allStats[:,:,:,stdvIdx]==compExp[:,:,:,0])
+                        compExp[:,:,:,0] = 100.0*(allStats[:,:,:,stdvIdx]/compExp[:,:,:,0])
+                        print(allStats[:,:,:,stdvIdx]/compExp[:,:,:,0])
+                        print(compExp[:,ii,nr,0])
+                        print(shape(compExp[:,:,:,0]))
+                        datGritas.confl*=compExp[:,ii,nr,0]
+                        datGritas.confr*=compExp[:,ii,nr,0]
+                        datGritas.monthlyPlot('ratio',compExp[:,ii,nr,0],stats=Res.globalProps.stats,instruments=Res.globalProps.instruments,annotation=Res.globalProps.expID)
                     elif Res.globalProps.comparator.typ == 'difference':
-                        totals[:,:,:,0] = allStats[:,:,:,stdvIdx] - totals[:,:,:,0]
-                        # show_bars_monthly_one(foo.lev,totals[:,ii,nr,0],Res.globalProps.colors[0],\
-                        #                       'difference',Res.globalProps.stats.scale,yyyymm,chisql,chisqr,foo.studt)
-                        foo.monthlyBars(totals[:,ii,nr,0],stats=Res.globalProps.stats,\
-                                        instruments=Res.globalProps.instruments,flavor='difference')
+                        compExp[:,:,:,0] = allStats[:,:,:,stdvIdx] - compExp[:,:,:,0]
+                        datGritas.monthlyBars(compExp[:,ii,nr,0],stats=Res.globalProps.stats,instruments=Res.globalProps.instruments,flavor='difference')
                     else:
-                        totals[:,:,:,1] = allStats[:,:,:,stdvIdx] #should this 'stdvIdx' be 'ii'??
-                        # show_bars_monthly(foo.lev,totals[:,ii,nr,:],Res.globalProps.colors,\
-                        #                   Res.globalProps.expID,Res.globalProps.stats.scale,yyyymm,chisql,chisqr,foo.studt)
-                        foo.monthlyBars(totals[:,ii,nr,:],stats=Res.globalProps.stats,\
-                                        instruments=Res.globalProps.instruments,flavor=Res.globalProps.expID)
-
-                    foo.saveFig()
-        
+                        compExp[:,:,:,1] = allStats[:,:,:,stdvIdx]
+                        datGritas.monthlyBars(compExp[:,ii,nr,:],stats=Res.globalProps.stats,instruments=Res.globalProps.instruments,flavor=Res.globalProps.expID)
+                    datGritas.saveFig()
+                    plt.show()
         else:
             raise ValueError("Unable to handle more than 2 experiments at once!")
 
@@ -177,7 +167,7 @@ for ii,fname in enumerate(Res.globalProps.fileName):
 # print("***")
 # print(allStats[0,0,0,0])
 
-sys.exit(0)
+sys.exit(10)
 
 # Case where we aren't looking at a specific experiment and, rather, desire a time series plot
 if numExp==0 and Res.globalProps.tSeriesPlot:
