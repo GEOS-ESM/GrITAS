@@ -26,12 +26,12 @@ class sharedFuncs:
     def __init__(self,name,*args):
         self.name=name
         self.collect=self.yamlStruc(args)
-            
+
     def yamlStruc(self,*args):
         return {t1:t2 for t1,t2 in args}
-        
 
-# A single region to be focused on 
+
+# A single region to be focused on
 #---------------------------------------------------
 class Region(sharedFuncs):
     def __init__(self,name='globe',lonRange=(0.0,360.0),latRange=(-90.0,90.0)):
@@ -63,13 +63,13 @@ class Region(sharedFuncs):
 class NestedDict:
     '''
     Maps a key to list of class instances
-    
+
     Serializable to yaml
     '''
     def __init__(self,key,members=[]):
         self.key = key
         self.members = members
-        
+
     def __repr__(self):
         s ='NestedDict instance "%s" with members:\n'%self.key
         try:
@@ -84,6 +84,10 @@ class NestedDict:
         raise KeyError('Region "%s" is not a member of Universe regions'%key)
 
 
+    def size(self):
+        return len(self.members)
+
+
     def toYaml(self):
         return {mem.name:mem.toYaml() for mem in self.members}
 
@@ -93,9 +97,13 @@ class NestedDict:
         self.members=[]
 
         for k in yamlTop.keys():
-            dum=instrument() if cls=='INSTRUMENT' else Region()
-            self.append( dum.fromYaml(yamlTop[k],name=k) )
-        
+            if cls=='INSTRUMENT':
+                self.append( instrument().fromYaml(yamlTop[k],name=k) )
+            elif cls=='EXPERIMENT':
+                self.append( Experiment().fromYaml(yamlTop[k],name=k) )
+            else:
+                self.append( Region().fromYaml(yamlTop[k],name=k) )
+
     # Serialize
     def serialize(self,yam):
         yam.writeObj({self.key: self.toYaml() })
@@ -104,7 +112,7 @@ class NestedDict:
     def append(self,m):
         self.members.append(m)
         # self.toYaml.update({m.name:m.toYaml})
-        
+
 
 # Collect configuration info for different instruments
 #-------------------------------------------------------
@@ -135,6 +143,32 @@ class instrument(sharedFuncs):
         self.vertUnits=yamlTop['vertical units']
         return self
 
+# An experiment class [NB: Experiment & instrument classes are functionally the same! Consider a factory?!]
+class Experiment:
+    def __init__(self,name='Unspecified',nickname='Unspecified',pathToFile='./'):
+        self.name=name
+        self.nickname=nickname
+        self.pathToFile=pathToFile
+
+    def __repr__(self):
+        return 'Experiment instance "%s":\n\t nicknamed = %s\n\t path = %s\n'%(self.name,self.nickname,self.pathToFile)
+
+    # Serialize instance of Experiment
+    def serialize(self,yam):
+        yam.writeObj({self.name: self.toYaml()})
+
+    def toYaml(self):
+        return self.yamlStruc(('nickname',self.nickname),
+                              ('file name', self.pathToFile))
+
+    def fromYaml(self,yamlTop,**kwargs):
+        self.name=kwargs['name']
+        self.nickname=yamlTop['nickname']
+        self.pathToFile=yamlTop['file name']
+        return self
+
+
+
 class comparator(sharedFuncs):
     def __init__(self,monthly,typ='ratio'):
         self.name='compare monthly'
@@ -149,13 +183,39 @@ class comparator(sharedFuncs):
 
     def toYaml(self):
         return self.yamlStruc(('monthly',self.monthly), ('type', self.typ))
-        
+
     def fromYaml(self,yamlTop):
         self.monthly=yamlTop['monthly']
         self.typ=yamlTop['type']
-        
+
     def serialize(self,yam):
         yam.writeObj({'Comparator': self.toYaml})
+
+
+class PlotParams(sharedFuncs):
+    def __init__(self):
+        self.timeSeries=False
+        self.monthly=False
+        self.typ='Unspecified'
+        self.regions=[]
+        self.form='png'
+
+    def fromYaml(self,yamlTop):
+        self.timeSeries = yamlTop['time series']
+        self.monthly = yamlTop['monthly']
+        self.typ = yamlTop['type']
+        self.regions = yamlTop['regions']
+        self.form = yamlTop['format']
+
+    def toYaml(self):
+        return self.yamlStruc(('time series', self.timeSeries),
+                              ('monthly', self.monthly),
+                              ('type', self.typ),
+                              ('regions', self.regions),
+                              ('format', self.form))
+
+    def serialize(self,yam):
+        yam.writeObj(self.toYaml)
 
 
 class Stats(sharedFuncs):
@@ -174,7 +234,7 @@ class Stats(sharedFuncs):
         else:
             raise ValueError("Unsupported Stats Flavor = %s\n- Supported Flavors: %s, %s, %s"
                              %(self.flavor,'Standard Deviation','DFS per Ob','Ob count'))
-    
+
     def toYaml(self):
         return self.yamlStruc(('flavor',     self.flavor),
                               ('scale',      self.scale),
@@ -190,11 +250,11 @@ class Stats(sharedFuncs):
         self.measures   = yamlTop['measures']
         self.colors     = yamlTop['colors']
         self.confidence = yamlTop['confidence']
-        
+
     def serialize(self,yam):
         yam.writeObj(self.toYaml)
 
-# Global properties 
+# Global properties
 #------------------------------------------
 class globalProps(sharedFuncs):
     '''
@@ -226,7 +286,12 @@ class globalProps(sharedFuncs):
     monthly : bool
     type : str (among 'ratio', 'difference', 'trivial')
 
-    <configure>
+    <experiments>
+      <experiment>
+        nickname: str
+        file name: str
+
+    <instruments>
       <instrument>
       vertical units : str
       min value : float
@@ -240,22 +305,23 @@ class globalProps(sharedFuncs):
     latb : float
     '''
 
-    def __init__(self,instruments=NestedDict('configure',[instrument()]),
+    def __init__(self,instruments=NestedDict('instruments',[instrument()]),
+                 experiments=NestedDict('experiments',[Experiment()]),
                  comparator=comparator(True),**kwargs):
         self.name='global'
         self.startDate=kwargs.get('startDate')
         self.endDate=kwargs.get('endDate')
-        self.nicknames=kwargs.get('nicknames')
-        self.expID=kwargs.get('expID')
-        self.fileName=kwargs.get('fileName')
+
         self.obCnt=kwargs.get('obCnt')
         self.obType=kwargs.get('obType')
-        self.regions=kwargs.get('regions')
-        self.figType='png'
-        self.monthlyPlot=False
-        self.tSeriesPlot=False
+        # self.regions=kwargs.get('regions')
+        # self.figType='png'
+        # self.monthlyPlot=False
+        # self.tSeriesPlot=False
 
+        self.plotParams=PlotParams()
         self.stats=Stats() #'Standard Deviation',True)
+        self.experiments=experiments
         self.instruments=instruments
         self.comparator=comparator
 
@@ -275,20 +341,19 @@ class globalProps(sharedFuncs):
     def fromYaml(self,yamlTop,**kwargs):
         self.startDate   = yamlTop['start date']
         self.endDate     = yamlTop['end date']
-        self.nicknames   = yamlTop['nicknames']
-        # self.expID     = yamlTop['experiment identifier']
-        self.expID       = yamlTop.get('experiment identifier',[])
-        self.fileName    = yamlTop['file name']
         self.obCnt       = yamlTop['ob count treshold for statistics']
         self.obType      = yamlTop['obtype']
-        self.regions     = yamlTop['regions']
-        self.figType     = yamlTop['figure type']
-        self.monthlyPlot = yamlTop['monthly plot']
-        self.tSeriesPlot = yamlTop['time series plot']
-        
+        # self.regions     = yamlTop['regions']
+        # self.figType     = yamlTop['figure type']
+        # self.monthlyPlot = yamlTop['monthly plot']
+        # self.tSeriesPlot = yamlTop['time series plot']
+
+        print(yamlTop.keys())
         self.stats.fromYaml(yamlTop['statistics'])
-        self.instruments.fromYaml(yamlTop['configure'],cls='INSTRUMENT') #instrument())
-        self.comparator.fromYaml(yamlTop['Comparator'])
+        self.experiments.fromYaml(yamlTop['experiments'],cls='EXPERIMENT')
+        self.instruments.fromYaml(yamlTop['instruments'],cls='INSTRUMENT') #instrument())
+        # self.comparator.fromYaml(yamlTop['Comparator'])
+        self.plotParams.fromYaml(yamlTop['Plot Params'])
 
         self.parseWildCards()
 
@@ -305,9 +370,10 @@ class globalProps(sharedFuncs):
                                 ('figure type',                      self.figType),
                                 ('monthly plot',                     self.monthlyPlot),
                                 ('time series plot',                 self.tSeriesPlot))
+        toYaml.update({'Plot Params': self.plotParams.toYaml()})
         toYaml.update({'statistics': self.stats.toYaml()})
-        toYaml.update({'Comparator': self.comparator.toYaml()})
-        toYaml.update({'configure': self.instruments.toYaml()})
+        # toYaml.update({'Comparator': self.comparator.toYaml()})
+        toYaml.update({'instruments': self.instruments.toYaml()})
 
         yam.writeObj({self.name: toYaml})
 
@@ -323,14 +389,6 @@ class Residual:
         self.globalProps.serialize(yam)
         out.write("\n")
         self.universe.serialize(yam)
-
-
-
-
-
-
-
-
 
 
 

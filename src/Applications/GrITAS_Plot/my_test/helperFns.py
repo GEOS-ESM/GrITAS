@@ -40,7 +40,7 @@ def adjustFigAspect(fig,aspect=1):
 
 class gritasFig:
     def __init__(self,prefix,obType,region,scale,typ='invalid',yrs=None,mnths=None):
-        self.prefix='X'.join(prefix)
+        self.prefix=''.join(prefix) if isinstance(prefix, str) else 'X'.join(prefix)
         self.obType=obType
         self.region=region
         self.scale=scale
@@ -50,7 +50,7 @@ class gritasFig:
         self.yrs=yrs
         self.mnths=mnths
 
-        self.figName='%s_%s_%s_%s_%s.%s'%(self.prefix,self.typ,self.obType,self.region,\
+        self.figName='%s_%s_%s_%s_%s.%s'%(self.prefix,self.obType,self.region,self.typ,\
                                           str(self.yrs)+self.mnths,self.figType)\
             if self.typ == 'monthly' else\
                '%s_%s_%s_%s_%s.%s'%(self.prefix,self.typ,self.obType,self.region,'FIXME-DUMSTAT',self.figType)
@@ -62,20 +62,23 @@ class gritasFig:
         self.maxLabelSize=7
 
         self.opacity=0.5
-        self.bar_width=0.6
+        self.bar_width=0.4 #1.0/3 #0.6
         self.error_config = {'ecolor': '0.3'}
 
-    def monthlyBars(self,allStats,stats=None,instruments=[],flavor='None'):
+    def monthlyBars(self,allStats,stats=None,instruments=[],flavor='None',simpleBars=False):
 
         self.commonFigSetup(allStats,stats.units,instruments,flavor=flavor)
 
+        # Iterate over all desired stats
         for ns, stat in enumerate(stats.measures):
-            omean=allStats[:,ns]
+            statAllLvls=allStats[:,ns]
 
-            pos = arange(len(omean))+ns*self.bar_width # hack to center the labels on the center of the bar
+            # Set center of bars
+            barCenter = arange(len(statAllLvls))-1.0/5+ns*self.bar_width
 
-            kwargs={'alpha': self.opacity,'color': stats.colors[ns],'label': stat,\
-                    'error_kw': self.error_config}
+            kwargs={'alpha': self.opacity,'color': stats.colors[ns],'label': stat,'error_kw': self.error_config}
+            # Confidence on monthlyBars
+            # --------------------------
             if stats.confidence:
                 xerr=[self.confl,self.confr]
                 if stat == 'mean':
@@ -83,12 +86,25 @@ class gritasFig:
                         xerr=self.studt*allStats[:,1]
                     else:
                         raise ValueError("Inconsistent options, aborting...")
-                kwargs.update({'xerr': xerr})
+                if simpleBars:
+                    kwargs.update({'xerr': xerr}) # append xerr to kwargs for simple bars
 
-            self.ax.barh(pos, omean, self.bar_width, **kwargs)
+            # Plot bars
+            self.ax.barh(barCenter, statAllLvls, self.bar_width, **kwargs)
 
-        self.ax.legend(loc='lower left')
-        self.ax.set_title(str(self.yrs)+self.mnths)
+            # Optionally plot prettier bars
+            if not simpleBars:
+                self.ax.vlines(statAllLvls,barCenter-0.5*self.bar_width,barCenter+0.5*self.bar_width,color='k')
+                if stat == 'mean':
+                    self.ax.barh(barCenter, xerr, self.bar_width,left=statAllLvls-xerr,color=stats.colors[ns],alpha=0.3,hatch='/////',edgecolor=stats.colors[ns])
+                    self.ax.barh(barCenter, xerr, self.bar_width,left=statAllLvls,color=stats.colors[ns],alpha=0.3,hatch='/////',edgecolor=stats.colors[ns])
+                else:
+                    self.ax.barh(barCenter, self.confl, self.bar_width, left=statAllLvls-self.confl,color=stats.colors[ns],alpha=0.3,hatch='/////',edgecolor=stats.colors[ns])
+                    self.ax.barh(barCenter, self.confr, self.bar_width, left=statAllLvls, color=stats.colors[ns],alpha=0.3,hatch='/////',edgecolor=stats.colors[ns])
+
+
+        self.ax.legend(loc='lower right')
+        self.ax.set_title("Instrument: %s    %s/%s"%(self.obType,self.mnths,str(self.yrs)))
 
 
     def tSeries(self,allStats,stats=None,instruments=[],flavor='None'):
@@ -127,6 +143,11 @@ class gritasFig:
         # if units != "1":
         #     mylabel = units if units == "%" else mylabel + ' (%s' % units + ')'
         # self.ax.set_xlabel(myLabel,fontsize=12)
+
+
+        # # Try getting stats internally
+        # #------------------
+        # self.getStat(_STAT_,
 
 
         if stats.confidence:
@@ -274,7 +295,7 @@ class Gritas(gritasVars,gritasFig):
         return self
 
 
-    def getStat(self,stat,levSlice=None,latSlice=None,lonSlice=None,threshold=None,mask='nobs'):
+    def getStat(self,stat,levSlice=None,latSlice=None,lonSlice=None,threshold=None,rescale=1.0,mask='nobs'):
         # Check for valid statistic
         if stat != 'sum' and stat != 'mean' and stat != 'stdv':
             raise ValueError("Statistics flavor %s not supported!"%stat)
@@ -301,7 +322,7 @@ class Gritas(gritasVars,gritasFig):
                 levelStat[n]=var[n,:,:][ID].sum()/(varNLat*varNLon)
             else:
                 levelStat[n]=var[n,:,:][ID].sum()
-        return levelStat
+        return rescale*levelStat
 
 
     def getConfidence(self,levSlice=None,latSlice=None,lonSlice=None,threshold=None):
