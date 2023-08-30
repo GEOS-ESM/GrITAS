@@ -19,25 +19,6 @@ def revMaskedArray(arr,action):
     else:
         return arr, range(1,len(arr),1)
 
-
-def adjustFigAspect(fig,aspect=1):
-    '''
-    Adjust the subplot parameters so that the figure has the correct
-    aspect ratio.
-    '''
-    xsize,ysize = fig.get_size_inches()
-    minsize = min(xsize,ysize)
-    xlim = .4*minsize/xsize
-    ylim = .4*minsize/ysize
-    if aspect < 1:
-        xlim *= aspect
-    else:
-        ylim /= aspect
-    fig.subplots_adjust(left=.5-xlim,
-                        right=.5+xlim,
-                        bottom=.5-ylim,
-                        top=.5+ylim)
-
 class gritasFig:
     def __init__(self,prefix,obType,region,scale,typ='invalid',yrs=None,mnths=None):
         self.prefix=''.join(prefix) if isinstance(prefix, str) else 'X'.join(prefix)
@@ -134,22 +115,12 @@ class gritasFig:
         # Capture minval/maxval
         minval, maxval = self.commonFigSetup(allStats,stats.units,instruments,flavor=annotation)
 
+        # Convenience
         midpnt = minval+0.5*(maxval-minval)
-
         pos = arange(len(allStats)) #+nf*bar_width
 
-        # # Set the x-label
-        # mylabel = '(x %s)' % str(1/scale)
-        # if units != "1":
-        #     mylabel = units if units == "%" else mylabel + ' (%s' % units + ')'
-        # self.ax.set_xlabel(myLabel,fontsize=12)
-
-
-        # # Try getting stats internally
-        # #------------------
-        # self.getStat(_STAT_,
-
-
+        # Include confidence levels
+        # --------------------------
         if stats.confidence:
             # xerr based on case
             xerr = self.studt if case == 'difference' or case == 'mean' else [self.confl,self.confr]
@@ -168,17 +139,15 @@ class gritasFig:
             # Plot errorbars regardless of case
             self.ax.errorbar(allStats, pos, xerr=xerr, ecolor='k', lw=2)
 
-
-            # Plot deterioration/improvement boxes
-            self.ax.annotate('Deterioration', xy=(maxval-0.03*maxval,0.5),  xycoords='data',
+            # Plot deterioration/improvement boxes #midpnt+0.0195*midpnt
+            self.ax.annotate('Deterioration', xy=(maxval-0.0195*(maxval-minval),0.5), xycoords='data',
                              xytext=(0,0), textcoords='offset points',
                              size=13, ha='right', va="center",
                              bbox=dict(boxstyle="round", alpha=0.1, color='r'))
-            self.ax.annotate('Improvement',   xy=(midpnt-0.03*midpnt,0.5),  xycoords='data',
+            self.ax.annotate('Improvement', xy=(minval+0.0195*(maxval-minval),0.5), xycoords='data',
                              xytext=(0,0), textcoords='offset points',
-                             size=13, ha='right', va="center",
+                             size=13, ha='left', va="center",
                              bbox=dict(boxstyle="round", alpha=0.1, color='g'))
-
         else:
             self.ax.plot(allStats,pos)
 
@@ -208,11 +177,15 @@ class gritasFig:
 
         vunits = instruments[self.obType].vertUnits
         ylabel='Pressure (%s)'%vunits if vunits == 'hPa' else 'Channel Index'
-        self.ax.set_ylabel(ylabel, fontsize=12)
+        xlabel= '(x %s)' % str(1/self.scale)
+        if units != "1":
+            xlabel = units if units == "%" else xlabel + ' (%s' % units + ')'
+        self.ax.set_xlabel(xlabel,fontsize=12)
+        self.ax.set_ylabel(ylabel,fontsize=12)
         self.ax.set_yticks(yticks)
         self.ax.set_yticklabels(int32(self.loc['lev'][yticks]), minor=False, rotation=0)
 
-
+        
         mytitle = '%s (x %s)'%(flavor,str(1/self.scale)) if self.typ == 'tseries'\
                   else '%s (x %s)'%(self.obType,str(1/self.scale))
         mytitle += ' (%s)'%units if units != "1" else ''
@@ -341,9 +314,13 @@ class Gritas(gritasVars,gritasFig):
         for n in range(nLev):
             ID=np.where(nobs[n,:,:]>threshold)
             nccum[n] = nobs[n,:,:][ID].sum()
-            confl[n] = sqrt((nccum[n]-1)/(nLat*nLon*chisql[n,1,1]))
-            confr[n] = sqrt((nccum[n]-1)/(nLat*nLon*chisqr[n,1,1]))
-            studt[n] = tstud[n,1,1]/sqrt(nccum[n]/(nLat*nLon))
+            # confl[n] = sqrt((nccum[n]-1)/(nLat*nLon*chisql[n,1,1]))
+            # confr[n] = sqrt((nccum[n]-1)/(nLat*nLon*chisqr[n,1,1]))
+            # studt[n] = tstud[n,1,1]/sqrt(nccum[n]/(nLat*nLon))
+
+            confl[n] = sqrt((nccum[n]-1)/(chisql[n,:,:][ID].sum()/(nLat*nLon)))
+            confr[n] = sqrt((nccum[n]-1)/(chisqr[n,:,:][ID].sum()/(nLat*nLon)))
+            studt[n] = (tstud[n,:,:][ID].sum()/(nLat*nLon))/sqrt(nccum[n])
 
         self.confl = confl
         self.confr = confr
