@@ -266,7 +266,7 @@ class globalProps(sharedFuncs):
     nicknames : list
     experiment identifier : list
     file name : str
-    ob count treshold for statistics : int
+    ob count threshold for statistics : int
     obtype : str
     regions : list
     figure type : str (png default)
@@ -341,7 +341,7 @@ class globalProps(sharedFuncs):
     def fromYaml(self,yamlTop,**kwargs):
         self.startDate   = yamlTop['start date']
         self.endDate     = yamlTop['end date']
-        self.obCnt       = yamlTop['ob count treshold for statistics']
+        self.obCnt       = yamlTop['ob count threshold for statistics']
         self.obType      = yamlTop['obtype']
         # self.regions     = yamlTop['regions']
         # self.figType     = yamlTop['figure type']
@@ -353,7 +353,7 @@ class globalProps(sharedFuncs):
         self.experiments.fromYaml(yamlTop['experiments'],cls='EXPERIMENT')
         self.instruments.fromYaml(yamlTop['instruments'],cls='INSTRUMENT') #instrument())
         # self.comparator.fromYaml(yamlTop['Comparator'])
-        self.plotParams.fromYaml(yamlTop['Plot Params'])
+        self.plotParams.fromYaml(yamlTop['plot params'])
 
         self.parseWildCards()
 
@@ -364,13 +364,13 @@ class globalProps(sharedFuncs):
                                 ('nicknames',                        self.nicknames),
                                 ('experiment identifier',            self.expID),
                                 ('file name',                        self.fileName),
-                                ('ob count treshold for statistics', self.obCnt),
+                                ('ob count threshold for statistics', self.obCnt),
                                 ('obtype',                           self.obType),
                                 ('regions',                          self.regions),
                                 ('figure type',                      self.figType),
                                 ('monthly plot',                     self.monthlyPlot),
                                 ('time series plot',                 self.tSeriesPlot))
-        toYaml.update({'Plot Params': self.plotParams.toYaml()})
+        toYaml.update({'plot params': self.plotParams.toYaml()})
         toYaml.update({'statistics': self.stats.toYaml()})
         # toYaml.update({'Comparator': self.comparator.toYaml()})
         toYaml.update({'instruments': self.instruments.toYaml()})
