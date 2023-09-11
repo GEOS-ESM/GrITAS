@@ -39,9 +39,24 @@ class Region(sharedFuncs):
         self.longitude = coordRange(lonRange)
         self.latitude = coordRange(latRange)
 
+    def __pretty_lat__(self,l):
+        if l < 0:   return '%.1fS'%abs(l)
+        elif l > 0: return '%.1fN'%abs(l)
+        else:       return '0'
+
+    def __pretty_lon__(self,l):
+        if l < 0:   return '%.1fW'%abs(l)
+        elif l > 0: return '%.1fE'%abs(l)
+        else:       return '0'
+
     def __repr__(self):
-        return 'Region instance "%s":\n\tLongitude : (%.1f,%.1f)\n\tLatitude  : (%.1f,%.1f)\n'%\
-            (self.name,self.longitude._min,self.longitude._max,self.latitude._min,self.latitude._max)
+        return '%s - %s\n%s - %s'%(self.__pretty_lat__(self.latitude._min),self.__pretty_lat__(self.latitude._max),\
+                                   self.__pretty_lon__(self.longitude._min),self.__pretty_lon__(self.longitude._max))
+
+    # def __repr__(self):
+    #     return 'Region instance "%s":\n\tLongitude : (%.1f,%.1f)\n\tLatitude  : (%.1f,%.1f)\n'%\
+    #         (self.name,self.longitude._min,self.longitude._max,self.latitude._min,self.latitude._max)
+
 
     # Serialize an instance of Region
     def serialize(self,yam):
@@ -263,6 +278,9 @@ class globalProps(sharedFuncs):
     <  GLOBAL  >
     start date : str
     end date : str
+
+    supported stats: list
+
     nicknames : list
     experiment identifier : list
     file name : str
@@ -314,10 +332,8 @@ class globalProps(sharedFuncs):
 
         self.obCnt=kwargs.get('obCnt')
         self.obType=kwargs.get('obType')
-        # self.regions=kwargs.get('regions')
-        # self.figType='png'
-        # self.monthlyPlot=False
-        # self.tSeriesPlot=False
+
+        self.supportedStats=kwargs.get('supported stats')
 
         self.plotParams=PlotParams()
         self.stats=Stats() #'Standard Deviation',True)
@@ -341,18 +357,16 @@ class globalProps(sharedFuncs):
     def fromYaml(self,yamlTop,**kwargs):
         self.startDate   = yamlTop['start date']
         self.endDate     = yamlTop['end date']
+
+        self.supportedStats = yamlTop['supported stats']
+
         self.obCnt       = yamlTop['ob count threshold for statistics']
         self.obType      = yamlTop['obtype']
-        # self.regions     = yamlTop['regions']
-        # self.figType     = yamlTop['figure type']
-        # self.monthlyPlot = yamlTop['monthly plot']
-        # self.tSeriesPlot = yamlTop['time series plot']
 
-        print(yamlTop.keys())
+
         self.stats.fromYaml(yamlTop['statistics'])
         self.experiments.fromYaml(yamlTop['experiments'],cls='EXPERIMENT')
         self.instruments.fromYaml(yamlTop['instruments'],cls='INSTRUMENT') #instrument())
-        # self.comparator.fromYaml(yamlTop['Comparator'])
         self.plotParams.fromYaml(yamlTop['plot params'])
 
         self.parseWildCards()
@@ -361,6 +375,7 @@ class globalProps(sharedFuncs):
     def serialize(self,yam):
         toYaml = self.yamlStruc(('start date',                       self.startDate),
                                 ('end date',                         self.endDate),
+                                ('supported stats',                  self.supportedStats),
                                 ('nicknames',                        self.nicknames),
                                 ('experiment identifier',            self.expID),
                                 ('file name',                        self.fileName),
@@ -372,7 +387,6 @@ class globalProps(sharedFuncs):
                                 ('time series plot',                 self.tSeriesPlot))
         toYaml.update({'plot params': self.plotParams.toYaml()})
         toYaml.update({'statistics': self.stats.toYaml()})
-        # toYaml.update({'Comparator': self.comparator.toYaml()})
         toYaml.update({'instruments': self.instruments.toYaml()})
 
         yam.writeObj({self.name: toYaml})

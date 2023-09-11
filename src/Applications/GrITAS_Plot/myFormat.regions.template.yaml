@@ -3,12 +3,21 @@ global:
    start date: '2022-11-01'
    end date: '2022-11-01'
 
+   supported stats:
+   - mean
+   - stdv
+   - sum
+
    plot params:
      time series: false
      monthly: true
-     type: difference
+     type: ratio
      regions:
      - glo
+     # - nhe
+     # - she
+     # - tro
+     # - nam
      format: png
 
    ob count threshold for statistics: 0
@@ -20,12 +29,12 @@ global:
       measures:
       - mean
       - stdv
-   #   - sum
+      # - sum
       colors:
       - b
       - r
       - g
-      units: '%'
+      units: '1' #'1' # '%'
       flavor: 'Standard Deviation' # maybe better called 'Moments'???
 
    experiments:
@@ -47,8 +56,8 @@ global:
        max value:  1.5
      atmsnpp:
        vertical units: 'index'
-       min value: -100 #98.0 #-20.0 #-1.5 #98.0
-       max value: 200 #102.0 #300.0 #1.5 #102.0
+       min value: -0.25 #98.0 #-0.25 #-1.5 #98.0
+       max value: 1.5 #102.0 #1.75 #1.5 #102.0
      atms:
        vertical units: 'index'
        min value: 90.0
@@ -64,13 +73,13 @@ global:
 
 regions:
    nhe:
-      lona: 0.0
-      lonb: 360.0
+      lona: -180.0
+      lonb: 180.0
       lata: 20.0
       latb: 90.0
    tro:
-      lona: 0.0
-      lonb: 360.0
+      lona: -180.0
+      lonb: 180.0
       lata: -20.0
       latb: 20.0
    glo:
@@ -84,8 +93,8 @@ regions:
       lata: 16.0
       latb: 72.0
    she:
-      lona: 0.0
-      lonb: 360.0
+      lona: -180.0
+      lonb: 180.0
       lata: -90.0
       latb: -20.0
    foo1:
