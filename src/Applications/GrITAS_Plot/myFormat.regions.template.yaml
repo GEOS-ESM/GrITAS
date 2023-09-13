@@ -11,6 +11,7 @@ global:
    plot params:
      time series: false
      monthly: true
+     simple bars: true
      type: ratio
      regions:
      - glo

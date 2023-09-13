@@ -211,6 +211,7 @@ class PlotParams(sharedFuncs):
     def __init__(self):
         self.timeSeries=False
         self.monthly=False
+        self.simpleBars=False
         self.typ='Unspecified'
         self.regions=[]
         self.form='png'
@@ -218,6 +219,7 @@ class PlotParams(sharedFuncs):
     def fromYaml(self,yamlTop):
         self.timeSeries = yamlTop['time series']
         self.monthly = yamlTop['monthly']
+        self.simpleBars = yamlTop['simple bars']
         self.typ = yamlTop['type']
         self.regions = yamlTop['regions']
         self.form = yamlTop['format']
@@ -225,6 +227,7 @@ class PlotParams(sharedFuncs):
     def toYaml(self):
         return self.yamlStruc(('time series', self.timeSeries),
                               ('monthly', self.monthly),
+                              ('simple bars', self.simpleBars),
                               ('type', self.typ),
                               ('regions', self.regions),
                               ('format', self.form))
