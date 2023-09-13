@@ -39,7 +39,6 @@ Res=plot_util.Residual(glob=Global,universe=Regions)
 
 
 
-
 # Set temporal information
 pandasDates = pd.date_range(start=Res.globalProps.startDate, end=Res.globalProps.endDate, freq='MS') #'D') #'MS')
 years = pandasDates.year; months = pandasDates.month
@@ -52,7 +51,7 @@ nlev, nlat, nlon = tmpFile.fromGritas(Res.globalProps.obType,Res.globalProps.sta
 
 numMnths = size(years)   # number of times to process
 numReg = size(Res.globalProps.plotParams.regions) # number of regions
-numStats = len(Res.globalProps.stats.measures)   # number of statitics to calculate
+numStats = len(Res.globalProps.supportedStats)  # number of statistics supported
 numExp = Res.globalProps.experiments.size()  # number of experiments to handle
 
 
@@ -60,15 +59,8 @@ print("Handling %i experiments"%numExp)
 # Check each experiment has a file per month
 
 
-# allStats = zeros([nlev,numMnths,numReg,numStats])
-# compExp  = zeros([nlev,numMnths,numReg,2]) if numExp == 2 else None
-
 allStats = zeros([nlev,numExp,numReg,numStats])
 compExp  = zeros([nlev,numExp,numReg,2]) if numExp == 2 else None
-
-# allStats = zeros([nlev,numMnths,numReg,numStats,numExp])
-# compExp  = zeros([nlev,numStats,2]) if numExp == 2 else None
-
 
 
 # Files to read in
@@ -77,8 +69,9 @@ orderedGritKeys=['Control', 'Exp']
 datGritas={'Control': None} #, 'Exp': None}
 
 for nx, exp in enumerate(Res.globalProps.experiments.members):
-    grit=Gritas(exp.pathToFile.replace('__ID__',exp.name))
+    grit=Gritas(exp.pathToFile.replace('__ID__',exp.name),supportedStats=Res.globalProps.supportedStats)
     grit.fromGritas(Res.globalProps.obType,Res.globalProps.stats.confidence,'index')
+    print(grit)
     # Check for matching dimensions
     if grit.dims() != tmpFile.dims():
         raise ValueError("Incompatible dimensions!\n\t - %s\n\t - %s"%(grit,tmpFile))
@@ -92,8 +85,7 @@ for nx, exp in enumerate(Res.globalProps.experiments.members):
 #---------------------------------------------------------------------------------------
 
 
-
-# Iterate over desired stats
+# Iterate over regions of interest
 #---------------------------------------------------------------------------------------
 for nr,region in enumerate(Res.globalProps.plotParams.regions):
     # Lookup 'region' from universe
@@ -105,9 +97,9 @@ for nr,region in enumerate(Res.globalProps.plotParams.regions):
     latSubset = [n for n,l in enumerate(datGritas['Control'].loc['lat']) if reglat._min <= l and l <= reglat._max]
     lonSubset = [n for n,l in enumerate(datGritas['Control'].loc['lon']) if reglon._min <= l and l <= reglon._max]
 
-    # Iterate over regions of interest
+    # Iterate over all supported stats - allows user to toggle which stat(s) to consider
     #---------------------------------------------------------------------------------------
-    for ns, stat in enumerate(Res.globalProps.stats.measures):
+    for ns, stat in enumerate(Res.globalProps.supportedStats):
 
         # Iterate over control and, potentially, experiment
         # --------------------------------------------------
@@ -133,13 +125,14 @@ for nr,region in enumerate(Res.globalProps.plotParams.regions):
     # -------------------------------------
     if numExp == 1:
         datGritas['Control'].plotInit(Res.globalProps.experiments.members[0].nickname,Res.globalProps.obType,\
-                                      region,Res.globalProps.stats.scale,typ='monthly',yrs=yyyy,mnths=mm)
+                                      Res.universe[region],Res.globalProps.stats.scale,\
+                                      Res.globalProps.plotParams.simpleBars,typ='monthly',yrs=yyyy,mnths=mm)
         if Res.globalProps.plotParams.monthly:
-            datGritas['Control'].monthlyBars(allStats[:,0,nr,:],stats=Res.globalProps.stats,\
+            datGritas['Control'].monthlyStat(allStats[:,0,nr,:],stats=Res.globalProps.stats,\
                                              instruments=Res.globalProps.instruments)
             datGritas['Control'].saveFig()
         else:
-            print("Found numExp = 1, but monthlyPlot is false - skipping monthlyBars plot")
+            print("Found numExp = 1, but monthlyPlot is false - skipping monthlyStat plot")
 
 
     if numExp == 2:
@@ -155,38 +148,31 @@ for nr,region in enumerate(Res.globalProps.plotParams.regions):
         nicknames = [exp.nickname for exp in Res.globalProps.experiments.members]
 
         datGritas['Exp'].plotInit(nicknames,Res.globalProps.obType,\
-                                      region,Res.globalProps.stats.scale,typ='monthly',yrs=yyyy,mnths=mm)
+                                  Res.universe[region],Res.globalProps.stats.scale,\
+                                  Res.globalProps.plotParams.simpleBars,typ='monthly',yrs=yyyy,mnths=mm)
 
 
-
-        print("Control confl")
-        print(datGritas['Control'].confl)
-        print("Control confr")
-        print(datGritas['Control'].confr)
-        print("Exp confl")
-        print(datGritas['Exp'].confl)
-        print("Exp confr")
-        print(datGritas['Exp'].confr)
-        # sys.exit()
 
         # Potentially rescale confidence intervals by a stat (e.g. mean/stdv - user selected) of Experiment's
         # -----------------------------------------
         if Res.globalProps.stats.confidence:
-            for conf in [datGritas['Exp'].confl, datGritas['Exp'].confr, datGritas['Exp'].studt]:
+            for conf in [datGritas['Exp'].leftChi2, datGritas['Exp'].rightChi2, datGritas['Exp'].studT]:
                 conf *= allStats[:,1,nr,stdvIdx]
 
         if Res.globalProps.plotParams.monthly:
             if Res.globalProps.plotParams.typ == 'ratio':
-                datGritas['Exp'].monthlyPlot(Res.globalProps.plotParams.typ,\
-                                                 100*(allStats[:,1,nr,stdvIdx]/cntlStdv),stats=Res.globalProps.stats,\
-                                                 instruments=Res.globalProps.instruments,annotation=nicknames)
+                datGritas['Exp'].monthlyComp(Res.globalProps.plotParams.typ,\
+                                             100*(allStats[:,1,nr,stdvIdx]/cntlStdv),stats=Res.globalProps.stats,\
+                                             instruments=Res.globalProps.instruments,annotation=nicknames)
             elif Res.globalProps.plotParams.typ == 'difference':
-                datGritas['Exp'].monthlyBars(allStats[:,1,nr,:]-allStats[:,0,nr,:],stats=Res.globalProps.stats,\
-                                                 instruments=Res.globalProps.instruments)
+                datGritas['Exp'].monthlyStat(allStats[:,1,nr,:]-allStats[:,0,nr,:],stats=Res.globalProps.stats,\
+                                             instruments=Res.globalProps.instruments,annotation=nicknames)
             else:
                 pass
         else:
-            print("Found numExp = 2, but plotParams.monthly is False - skipping monthlyBars/Plot plots")
+            print("Found numExp = 2, but plotParams.monthly is False - skipping monthlyStat/Plot plots")
+
+        datGritas['Exp'].saveFig()
 
 
 plt.show()

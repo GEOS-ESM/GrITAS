@@ -11,6 +11,8 @@ import netCDF4 as nc4
 
 # Global settings for matplotlib
 mpl.rc('font', family='serif')
+# mpl.rc('text', usetex=True)
+# mpl.rcParams.update(mpl.rcParamsDefault)
 
 def revMaskedArray(arr,action):
     if action:
@@ -19,22 +21,32 @@ def revMaskedArray(arr,action):
     else:
         return arr, range(1,len(arr),1)
 
+
+def lvlAvg(arr,mask):
+    '''
+    Return sum(arr)/dim(arr) where elements of arr included in sum and dim are those identified by mask
+    -> shape(mask)[1] equates to number of lat x lon points for which elements of arr meet mask criterion
+    '''
+    return arr[mask].sum()/shape(mask)[1]
+
+
 class gritasFig:
-    def __init__(self,prefix,obType,region,scale,typ='invalid',yrs=None,mnths=None):
+    def __init__(self,prefix,obType,region,scale,simpleBars,typ='invalid',yrs=None,mnths=None):
         self.prefix=''.join(prefix) if isinstance(prefix, str) else 'X'.join(prefix)
         self.obType=obType
         self.region=region
         self.scale=scale
+        self.simpleBars=simpleBars
         self.typ=typ
         self.figType='png'
         # Either a single year/month or (pandas) collection of several
         self.yrs=yrs
         self.mnths=mnths
 
-        self.figName='%s_%s_%s_%s_%s.%s'%(self.prefix,self.obType,self.region,self.typ,\
+        self.figName='%s_%s_%s_%s_%s.%s'%(self.prefix,self.obType,self.region.name,self.typ,\
                                           str(self.yrs)+self.mnths,self.figType)\
             if self.typ == 'monthly' else\
-               '%s_%s_%s_%s_%s.%s'%(self.prefix,self.typ,self.obType,self.region,'FIXME-DUMSTAT',self.figType)
+               '%s_%s_%s_%s_%s.%s'%(self.prefix,self.typ,self.obType,self.region.name,'FIXME-DUMSTAT',self.figType)
 
         self.fig = plt.figure(figsize=(8,10)) if self.typ == 'monthly' else plt.figure(figsize=(10,10))
         self.ax=self.fig.gca()
@@ -46,46 +58,96 @@ class gritasFig:
         self.bar_width=0.4 #1.0/3 #0.6
         self.error_config = {'ecolor': '0.3'}
 
-    def monthlyBars(self,allStats,stats=None,instruments=[],flavor='None',simpleBars=False):
-
+    def monthlyStat(self,allStats,stats=None,instruments=[],flavor='None',annotation=None):
+        print("IN MONTHLYSTAT (formerly monthlyBars)")
         self.commonFigSetup(allStats,stats.units,instruments,flavor=flavor)
 
-        # Iterate over all desired stats
-        for ns, stat in enumerate(stats.measures):
+
+        # Iterate over all supported stats, skipping if not desired
+        for ns, stat in enumerate(self.supportedStats):
+            if stat not in stats.measures:
+                continue
+            print("--- with ns, stat = %i, %s"%(ns,stat))
             statAllLvls=allStats[:,ns]
 
             # Set center of bars
             barCenter = arange(len(statAllLvls))-1.0/5+ns*self.bar_width
 
             kwargs={'alpha': self.opacity,'color': stats.colors[ns],'label': stat,'error_kw': self.error_config}
-            # Confidence on monthlyBars
+            # Confidence on monthlyStat
             # --------------------------
             if stats.confidence:
-                xerr=[self.confl,self.confr]
-                if stat == 'mean':
-                    if stats.measures[1]=='stdv':
-                        xerr=self.studt*allStats[:,1]
-                    else:
-                        raise ValueError("Inconsistent options, aborting...")
-                if simpleBars:
-                    kwargs.update({'xerr': xerr}) # append xerr to kwargs for simple bars
+                '''
+                Confidence level assigned to mean:
+                    <sample variance> * <test statistic>/sqrt(<# observations - i.e. sample size!>
+                The measurements form a random sample {x1,x2,...,xn} drawn from (assumed) a normal distribution
+                with (pop.) mean \mu and (pop.) variance \sigma^2. As the population mean and variance of the
+                underlying distribution are unknown, we must use a t-score (via t-distribution) to assign a
+                (1-\alpha) confidence level for the computed SAMPLE MEAN.
+                   CL = [ xbar - t(\alpha/2|n-1)*(s/\sqrt(n)), xbar + t(\alpha/2|n-1)*(s/\sqrt(n)) ]
+
+                where:  - xbar = sample mean
+                        - t(\alpha/2|n-1) is area = \alpha/2 of t-distribution w/ n-1 dof (i.e. prob. of test statistic
+                          to exceed value st. prob. is \alpha/2)
+                        - s^2 = sample variance
+
+                ======
+
+                Confidence level assigned to variance:
+                Suppose we want to estimate the variance of (assumed) normal distribution (w/ pop. mean \mu and pop.
+                variance \sigma^2) from which random sample {x1,x2,...,xn} are drawn. Assuming pop. mean/variance are
+                unknown, the random variable Q = (n-1)s^2/\sigma^2 is chi2 distributed w/ n-1 dof. Thus, we can use
+                left/right chi-squared scores to assign a (1-\alpha) confidence level for the computed SAMPLE VARIANCE.
+
+                     CL = [ (n-1)s^2 / chi2(\alpha/2|n-1), (n-1)s^2 / chi2(1-\alpha/2|n-1) ]
+
+                where:  - s^2 = sample variance
+                        - n = sample size
+                        - chi2(\alpha/2|n-1) is value of Chi2 dist. w/ n-1 dof for which area is \alpha/2
+                        - chi2(1-\alpha/2|n-1) is value of Chi2 dist. w/ n-1 dof for which area is 1-\alpha/2
+                '''
+
+                # Set xerr to studT score if forming CL for pop. mean, and left/right Chi2 scores if forming
+                # CL for pop. stdv.
+                xerr=self.studT if stat == 'mean' else [self.leftChi2,self.rightChi2]
+
+                # Assign no error if a stat other than pop. mean/stdv is being estimated
+                if stat != 'mean' and stat != 'stdv':
+                    xerr=np.ones(np.size(allStats[:,1]))
+
+                # Multiply by sample stdv., thus completing formation of CL
+                xerr*=allStats[:,1]
+
 
             # Plot bars
             self.ax.barh(barCenter, statAllLvls, self.bar_width, **kwargs)
 
-            # Optionally plot prettier bars
-            if not simpleBars:
-                self.ax.vlines(statAllLvls,barCenter-0.5*self.bar_width,barCenter+0.5*self.bar_width,color='k')
-                if stat == 'mean':
-                    self.ax.barh(barCenter, xerr, self.bar_width,left=statAllLvls-xerr,color=stats.colors[ns],alpha=0.3,hatch='/////',edgecolor=stats.colors[ns])
-                    self.ax.barh(barCenter, xerr, self.bar_width,left=statAllLvls,color=stats.colors[ns],alpha=0.3,hatch='/////',edgecolor=stats.colors[ns])
-                else:
-                    self.ax.barh(barCenter, self.confl, self.bar_width, left=statAllLvls-self.confl,color=stats.colors[ns],alpha=0.3,hatch='/////',edgecolor=stats.colors[ns])
-                    self.ax.barh(barCenter, self.confr, self.bar_width, left=statAllLvls, color=stats.colors[ns],alpha=0.3,hatch='/////',edgecolor=stats.colors[ns])
 
+            # Toggle between simple or prettier bars
+            if self.simpleBars:
+                self.ax.errorbar(statAllLvls, barCenter, xerr=xerr, color=stats.colors[ns], capsize=5,ls='')
+            else:
+                self.ax.vlines(statAllLvls,barCenter-0.6*self.bar_width,barCenter+0.6*self.bar_width,color='k')
+                if stat == 'mean':
+                    self.ax.barh(barCenter, xerr, self.bar_width,left=statAllLvls-xerr,color=stats.colors[ns],\
+                                 alpha=1.0,hatch='/////',edgecolor=stats.colors[ns])
+                    self.ax.barh(barCenter, xerr, self.bar_width,left=statAllLvls,color=stats.colors[ns],\
+                                 alpha=1.0,hatch='/////',edgecolor=stats.colors[ns])
+                else:
+                    self.ax.barh(barCenter, xerr[0], self.bar_width, left=statAllLvls-xerr[0],\
+                                 color=stats.colors[ns],alpha=1.0,hatch='/////',edgecolor=stats.colors[ns])
+                    self.ax.barh(barCenter, xerr[1], self.bar_width, left=statAllLvls, color=stats.colors[ns],\
+                                 alpha=1.0,hatch='/////',edgecolor=stats.colors[ns])
+
+        # Add annotations if not None
+        # Labeling of figure
+        # -------------------
+        if annotation:
+            self.fig.suptitle('CTL: %s'%annotation[0], x=0.125, y=0.93, ha='left', fontsize=14)
+            self.ax.set_title('EXP: %s'%annotation[1], loc='left', fontsize=14)
 
         self.ax.legend(loc='lower right')
-        self.ax.set_title("Instrument: %s    %s/%s"%(self.obType,self.mnths,str(self.yrs)))
+
 
 
     def tSeries(self,allStats,stats=None,instruments=[],flavor='None'):
@@ -111,7 +173,8 @@ class gritasFig:
         self.ax.set_xticklabels(int32(yyyymm[x1]), minor=False, rotation=45)
 
 
-    def monthlyPlot(self,case,allStats,stats=None,instruments=[],annotation=''):
+    def monthlyComp(self,case,allStats,stats=None,instruments=[],annotation=''):
+        print("IN MONTHLYCOMP (formerly monthlyPlot)")
         # Capture minval/maxval
         minval, maxval = self.commonFigSetup(allStats,stats.units,instruments,flavor=annotation)
 
@@ -123,7 +186,7 @@ class gritasFig:
         # --------------------------
         if stats.confidence:
             # xerr based on case
-            xerr = self.studt if case == 'difference' or case == 'mean' else [self.confl,self.confr]
+            xerr = self.studT if case == 'difference' or case == 'mean' else [self.leftChi2,self.rightChi2]
 
             if case == 'difference':
                 self.ax.plot(zeros(len(allStats)), pos, color='k', lw=1, alpha=0.8)
@@ -131,25 +194,28 @@ class gritasFig:
                 refline=midpnt*ones(len(allStats))
                 self.ax.plot(refline, pos, color='k', lw=1, alpha=0.8)
 
-                self.fig.suptitle('CTL: %s'%annotation[0], x=0.125, y=0.93, ha='left', fontsize=14)
-                self.ax.set_title('EXP: %s'%annotation[1], loc='left', fontsize=14)
-                self.ax.annotate(self.obType.upper(), xy=(maxval-0.06*maxval,amax(pos)-0.5),
-                                 size=12, ha='left', va="bottom")
-
             # Plot errorbars regardless of case
             self.ax.errorbar(allStats, pos, xerr=xerr, ecolor='k', lw=2)
-
-            # Plot deterioration/improvement boxes #midpnt+0.0195*midpnt
-            self.ax.annotate('Deterioration', xy=(maxval-0.0195*(maxval-minval),0.5), xycoords='data',
-                             xytext=(0,0), textcoords='offset points',
-                             size=13, ha='right', va="center",
-                             bbox=dict(boxstyle="round", alpha=0.1, color='r'))
-            self.ax.annotate('Improvement', xy=(minval+0.0195*(maxval-minval),0.5), xycoords='data',
-                             xytext=(0,0), textcoords='offset points',
-                             size=13, ha='left', va="center",
-                             bbox=dict(boxstyle="round", alpha=0.1, color='g'))
         else:
             self.ax.plot(allStats,pos)
+
+        # Labeling of figure
+        # -------------------
+        self.fig.suptitle('CTL: %s'%annotation[0], x=0.125, y=0.93, ha='left', fontsize=14)
+        self.ax.set_title('EXP: %s'%annotation[1], loc='left', fontsize=14)
+        # self.ax.annotate(self.obType.upper(), xy=(maxval-0.06*maxval,amax(pos)-0.5),
+        #                  size=12, ha='left', va="bottom")
+
+        # Plot deterioration/improvement boxes #midpnt+0.0195*midpnt
+        # -----------------------------------------------------------
+        self.ax.annotate('Deterioration', xy=(maxval-0.0195*(maxval-minval),0.5), xycoords='data',
+                         xytext=(0,0), textcoords='offset points',
+                         size=13, ha='right', va="center",
+                         bbox=dict(boxstyle="round", alpha=0.1, color='r'))
+        self.ax.annotate('Improvement', xy=(minval+0.0195*(maxval-minval),0.5), xycoords='data',
+                         xytext=(0,0), textcoords='offset points',
+                         size=13, ha='left', va="center",
+                         bbox=dict(boxstyle="round", alpha=0.1, color='g'))
 
 
 
@@ -185,11 +251,20 @@ class gritasFig:
         self.ax.set_yticks(yticks)
         self.ax.set_yticklabels(int32(self.loc['lev'][yticks]), minor=False, rotation=0)
 
-        
-        mytitle = '%s (x %s)'%(flavor,str(1/self.scale)) if self.typ == 'tseries'\
-                  else '%s (x %s)'%(self.obType,str(1/self.scale))
-        mytitle += ' (%s)'%units if units != "1" else ''
-        self.ax.set_title(mytitle)
+
+        # mytitle = '%s (x %s)'%(flavor,str(1/self.scale)) if self.typ == 'tseries'\
+        #           else '%s (x %s)'%(self.obType,str(1/self.scale))
+        # mytitle += ' (%s)'%units if units != "1" else ''
+
+        self.ax.set_title('%s\nTime Window: %s/%s'%(self.obType.upper(),self.mnths,str(self.yrs)))
+
+        # Get coordinates of axes
+        # ------------------------
+        _x0,_y0,_width,_height=self.ax.get_position().bounds
+        # Include instrument hame and lat/lon coordinates on figure
+        # ----------------------------------------------------------
+        # self.fig.text(_x0,_y0+_height+0.005,"%s"%self.obType,ha='left',fontsize=14)
+        self.fig.text(_x0+_width,_y0+_height+0.005,'%s\n%s'%(self.region.name,self.region),ha='right',fontsize=14)
 
         return minval, maxval
 
@@ -223,7 +298,7 @@ class gritasVars:
 
 
 class Gritas(gritasVars,gritasFig):
-    def __init__(self,fname):
+    def __init__(self,fname,supportedStats=None):
         self.fname=fname
         self.loc={}
         self.var=None
@@ -234,9 +309,11 @@ class Gritas(gritasVars,gritasFig):
         self.chisql=None
         self.tstud=None
 
-        self.confl=None
-        self.confr=None
-        self.studt=None
+        self.leftChi2=None
+        self.rightChi2=None
+        self.studT=None
+
+        self.supportedStats=supportedStats
 
 
     def __repr__(self):
@@ -270,7 +347,7 @@ class Gritas(gritasVars,gritasFig):
 
     def getStat(self,stat,levSlice=None,latSlice=None,lonSlice=None,threshold=None,rescale=1.0,mask='nobs'):
         # Check for valid statistic
-        if stat != 'sum' and stat != 'mean' and stat != 'stdv':
+        if stat not in self.supportedStats: #!= 'sum' and stat != 'mean' and stat != 'stdv':
             raise ValueError("Statistics flavor %s not supported!"%stat)
 
         # Select the correct member variable based on 'stat'
@@ -299,6 +376,8 @@ class Gritas(gritasVars,gritasFig):
 
 
     def getConfidence(self,levSlice=None,latSlice=None,lonSlice=None,threshold=None):
+        # Confidence is repeated for each cell (ie lat x lon) at a given level
+
         # Slice class member 'nobs'
         nobs = self.sliceVar(self.nobs,levSlice,latSlice,lonSlice)
         # Convenience
@@ -309,23 +388,23 @@ class Gritas(gritasVars,gritasFig):
         # Local dimensions of 'nobs'
         nLev, nLat, nLon = nobs.shape
 
-        confl, confr, studt, nccum = np.zeros(nLev), np.zeros(nLev), np.zeros(nLev), np.zeros(nLev)
+        # Left/Right Chi2 Scores, Student-T score, and Number of Observations Per Level
+        leftChi2, rightChi2, studT, sampleSize = np.zeros(nLev), np.zeros(nLev), np.zeros(nLev), np.zeros(nLev)
 
         for n in range(nLev):
             ID=np.where(nobs[n,:,:]>threshold)
-            nccum[n] = nobs[n,:,:][ID].sum()
-            # confl[n] = sqrt((nccum[n]-1)/(nLat*nLon*chisql[n,1,1]))
-            # confr[n] = sqrt((nccum[n]-1)/(nLat*nLon*chisqr[n,1,1]))
-            # studt[n] = tstud[n,1,1]/sqrt(nccum[n]/(nLat*nLon))
+            sampleSize[n] = nobs[n,:,:][ID].sum()
+            # leftChi2[n] = sqrt((sampleSize[n]-1)/(chisql[n,:,:][ID].sum()/(nLat*nLon)))
+            # rightChi2[n] = sqrt((sampleSize[n]-1)/(chisqr[n,:,:][ID].sum()/(nLat*nLon)))
+            # studT[n] = (tstud[n,:,:][ID].sum()/(nLat*nLon))/sqrt(sampleSize[n])
+            leftChi2[n] = sqrt((sampleSize[n]-1)/lvlAvg(chisql[n,:,:],ID))
+            rightChi2[n] = sqrt((sampleSize[n]-1)/lvlAvg(chisqr[n,:,:],ID))
+            studT[n] = lvlAvg(tstud[n,:,:],ID)/sqrt(sampleSize[n])
 
-            confl[n] = sqrt((nccum[n]-1)/(chisql[n,:,:][ID].sum()/(nLat*nLon)))
-            confr[n] = sqrt((nccum[n]-1)/(chisqr[n,:,:][ID].sum()/(nLat*nLon)))
-            studt[n] = (tstud[n,:,:][ID].sum()/(nLat*nLon))/sqrt(nccum[n])
-
-        self.confl = confl
-        self.confr = confr
-        self.studt = studt
+        self.leftChi2 = leftChi2
+        self.rightChi2 = rightChi2
+        self.studT = studT
 
 
-    def plotInit(self,prefix,obType,region,scale,typ,yrs,mnths):
-        gritasFig.__init__(self,prefix,obType,region,scale,typ,yrs,mnths)
+    def plotInit(self,prefix,obType,region,scale,simpleBars,typ,yrs,mnths):
+        gritasFig.__init__(self,prefix,obType,region,scale,simpleBars,typ,yrs,mnths)
