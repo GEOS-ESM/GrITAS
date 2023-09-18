@@ -173,8 +173,11 @@ class gritasFig:
         self.ax.set_xticklabels(int32(yyyymm[x1]), minor=False, rotation=45)
 
 
-    def monthlyComp(self,case,allStats,stats=None,instruments=[],annotation=''):
+    # def monthlyComp(self,case,allStats,stats=None,instruments=[],annotation=''):
+    def monthlyComp(self,case,expStats,cntlStats,stats=None,instruments=[],annotation=''):
         print("IN MONTHLYCOMP (formerly monthlyPlot)")
+        allStats=100*(expStats/cntlStats) if case == 'ratio' else expStats - cntlStats
+
         # Capture minval/maxval
         minval, maxval = self.commonFigSetup(allStats,stats.units,instruments,flavor=annotation)
 
@@ -186,7 +189,9 @@ class gritasFig:
         # --------------------------
         if stats.confidence:
             # xerr based on case
-            xerr = self.studT if case == 'difference' or case == 'mean' else [self.leftChi2,self.rightChi2]
+            xerr = self.studT if case == 'difference' else [self.leftChi2,self.rightChi2]
+            # Multiply by sample stdv. of Exp, thus completing formation of CL
+            xerr*=expStats # this is okay, since this method is only called for ratio
 
             if case == 'difference':
                 self.ax.plot(zeros(len(allStats)), pos, color='k', lw=1, alpha=0.8)
@@ -195,7 +200,7 @@ class gritasFig:
                 self.ax.plot(refline, pos, color='k', lw=1, alpha=0.8)
 
             # Plot errorbars regardless of case
-            self.ax.errorbar(allStats, pos, xerr=xerr, ecolor='k', lw=2)
+            self.ax.errorbar(allStats, pos, xerr=xerr, ecolor='b', lw=2, capsize=5, ls=':', color='gray')
         else:
             self.ax.plot(allStats,pos)
 

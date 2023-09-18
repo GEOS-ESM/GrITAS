@@ -153,22 +153,21 @@ for nr,region in enumerate(Res.globalProps.plotParams.regions):
 
 
 
-        # Potentially rescale confidence intervals by a stat (e.g. mean/stdv - user selected) of Experiment's
-        # -----------------------------------------
-        if Res.globalProps.stats.confidence:
-            for conf in [datGritas['Exp'].leftChi2, datGritas['Exp'].rightChi2, datGritas['Exp'].studT]:
-                conf *= allStats[:,1,nr,stdvIdx]
-
         if Res.globalProps.plotParams.monthly:
-            if Res.globalProps.plotParams.typ == 'ratio':
-                datGritas['Exp'].monthlyComp(Res.globalProps.plotParams.typ,\
-                                             100*(allStats[:,1,nr,stdvIdx]/cntlStdv),stats=Res.globalProps.stats,\
-                                             instruments=Res.globalProps.instruments,annotation=nicknames)
-            elif Res.globalProps.plotParams.typ == 'difference':
-                datGritas['Exp'].monthlyStat(allStats[:,1,nr,:]-allStats[:,0,nr,:],stats=Res.globalProps.stats,\
-                                             instruments=Res.globalProps.instruments,annotation=nicknames)
-            else:
-                pass
+            datGritas['Exp'].monthlyComp(Res.globalProps.plotParams.typ,
+                                         allStats[:,1,nr,stdvIdx],allStats[:,0,nr,stdvIdx],
+                                         stats=Res.globalProps.stats,
+                                         instruments=Res.globalProps.instruments,annotation=nicknames)
+
+            # if Res.globalProps.plotParams.typ == 'ratio':
+            #     datGritas['Exp'].monthlyComp(Res.globalProps.plotParams.typ,\
+            #                                  100*(allStats[:,1,nr,stdvIdx]/cntlStdv),stats=Res.globalProps.stats,\
+            #                                  instruments=Res.globalProps.instruments,annotation=nicknames)
+            # elif Res.globalProps.plotParams.typ == 'difference':
+            #     datGritas['Exp'].monthlyStat(allStats[:,1,nr,:]-allStats[:,0,nr,:],stats=Res.globalProps.stats,\
+            #                                  instruments=Res.globalProps.instruments,annotation=nicknames)
+            # else:
+            #     pass
         else:
             print("Found numExp = 2, but plotParams.monthly is False - skipping monthlyStat/Plot plots")
 
