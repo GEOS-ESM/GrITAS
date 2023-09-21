@@ -151,6 +151,12 @@ class gritasFig:
 
 
     def tSeries(self,allStats,stats=None,instruments=[],flavor='None'):
+        # Make copies of allStats for masking
+        slices=[allStats.copy(), allStats.copy(), allStats.copy()]
+        # Mask
+        for n,s in enumerate(slices):
+            s[:,(n+1)%len(slices)]=s[:,(n+2)%len(slices)]=np.nan
+
         # Capture minval/maxval
         minval,maxval = self.commonFigSetup(allStats,stats.units,instruments,flavor=flavor)
 
@@ -158,17 +164,27 @@ class gritasFig:
         if rval < 0.0:
             maxval= max(abs(minval),abs(maxval))
             minval=-maxval
-            cs=plt.pcolor(allStats,cmap=plt.cm.seismic,vmin=minval,vmax=maxval)
+
+            cs_mean=self.ax.pcolor(slices[0],cmap=plt.cm.Blues,vmin=np.nanmin(slices[0]),\
+                                   vmax=np.nanmax(slices[0]))
+            cs_stdv=self.ax.pcolor(slices[1],cmap=plt.cm.autumn_r,vmin=np.nanmin(slices[1]),\
+                                   vmax=np.nanmax(slices[1]))
+            cs_summ=self.ax.pcolor(slices[2],cmap=plt.cm.Greens,vmin=0,vmax=np.nanmax(slices[2]))
+
         else:
-            cs=plt.pcolor(allStats,cmap=plt.cm.binary,vmin=minval,vmax=maxval)
-        cbar=plt.colorbar(cs)
+            cs=plt.pcolor(DUM,cmap=plt.cm.binary,vmin=minval,vmax=maxval)
+        # Add colorbars to plot
+        cbar_summ=plt.colorbar(cs_summ)
+        cbar_stdv=plt.colorbar(cs_stdv)
+        cbar_mean=plt.colorbar(cs_mean)
 
         x1 = range(0,len(self.yrs))
+
 
         self.ax.axes.xaxis.set_visible(True)
         self.ax.axes.yaxis.set_visible(True)
         self.ax.set_xlabel('Date')
-        self.ax.set_xticks(x1)
+        self.ax.set_xticks(range(len(slices)*len(self.yrs)))
         yyyymm = 100*self.yrs + self.mnths
         self.ax.set_xticklabels(int32(yyyymm[x1]), minor=False, rotation=45)
 
@@ -185,6 +201,9 @@ class gritasFig:
         midpnt = minval+0.5*(maxval-minval)
         pos = arange(len(allStats)) #+nf*bar_width
 
+        # For the moment, we will only compare difference in means (blue) or ratio of stdv's (red)
+        ecolor = 'b' if case == 'difference' else 'r'
+
         # Include confidence levels
         # --------------------------
         if stats.confidence:
@@ -200,7 +219,7 @@ class gritasFig:
                 self.ax.plot(refline, pos, color='k', lw=1, alpha=0.8)
 
             # Plot errorbars regardless of case
-            self.ax.errorbar(allStats, pos, xerr=xerr, ecolor='b', lw=2, capsize=5, ls=':', color='gray')
+            self.ax.errorbar(allStats, pos, xerr=xerr, ecolor=ecolor, lw=2, capsize=5, ls=':', color='gray')
         else:
             self.ax.plot(allStats,pos)
 
@@ -277,7 +296,6 @@ class gritasFig:
         plt.savefig(self.figName)
 
 
-
 class gritasVars:
     def read(self,nc4Var,confidence,idx):
         self.var = nc4Var[:,:,:,:]
@@ -320,6 +338,8 @@ class Gritas(gritasVars,gritasFig):
 
         self.supportedStats=supportedStats
 
+        self.figExist=False
+
 
     def __repr__(self):
         return "NetCDF file "+self.fname+" contains ( levels = %i, nlat = %i, nlon = %i )"%self.dims()
@@ -337,12 +357,20 @@ class Gritas(gritasVars,gritasFig):
             raise ValueError("Unable to report dims! - Must read from GrITAS file first!")
 
     def fromGritas(self,var,confidence,vunits):
+        '''
+        Read data from self.fname stored at 'var'
+        - var : instrument name (e.g. atmsnpp)
+        - optionally read t-scores and l/r chi-squared scores for assigning confidence intervals
+        - vunits : vertical units
+        '''
         f = nc4.Dataset(self.fname,'r', format='NETCDF4')
 
+        # Pick out latitude, longitude and level values stored
         self.loc={k:f.variables[k][:] for k in ['lat','lon','lev']}
 
         # Reverse order of masked array 'lev', if vertical units are not 'hPa'
         self.loc['lev'], idx = revMaskedArray(self.loc['lev'], ( vunits != 'hPa' ) )
+
         # Read remaining variables - ie. the statistics
         self.read(f.variables[var],confidence,idx)
 
@@ -352,7 +380,7 @@ class Gritas(gritasVars,gritasFig):
 
     def getStat(self,stat,levSlice=None,latSlice=None,lonSlice=None,threshold=None,rescale=1.0,mask='nobs'):
         # Check for valid statistic
-        if stat not in self.supportedStats: #!= 'sum' and stat != 'mean' and stat != 'stdv':
+        if stat not in self.supportedStats:
             raise ValueError("Statistics flavor %s not supported!"%stat)
 
         # Select the correct member variable based on 'stat'
@@ -413,3 +441,4 @@ class Gritas(gritasVars,gritasFig):
 
     def plotInit(self,prefix,obType,region,scale,simpleBars,typ,yrs,mnths):
         gritasFig.__init__(self,prefix,obType,region,scale,simpleBars,typ,yrs,mnths)
+        self.figExist=True
