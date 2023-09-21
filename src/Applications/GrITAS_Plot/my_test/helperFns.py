@@ -46,9 +46,10 @@ class gritasFig:
         self.figName='%s_%s_%s_%s_%s.%s'%(self.prefix,self.obType,self.region.name,self.typ,\
                                           str(self.yrs)+self.mnths,self.figType)\
             if self.typ == 'monthly' else\
-               '%s_%s_%s_%s_%s.%s'%(self.prefix,self.typ,self.obType,self.region.name,'FIXME-DUMSTAT',self.figType)
+               '%s_%s_%s_%s.%s'%(self.prefix,self.typ,self.obType,self.region.name,self.figType)
 
         self.fig = plt.figure(figsize=(8,10)) if self.typ == 'monthly' else plt.figure(figsize=(10,10))
+        self.fig.tight_layout(pad=1.0)
         self.ax=self.fig.gca()
         self.ax.set_facecolor('#CECECE')
         self.minLabelSize=4
@@ -174,19 +175,23 @@ class gritasFig:
         else:
             cs=plt.pcolor(DUM,cmap=plt.cm.binary,vmin=minval,vmax=maxval)
         # Add colorbars to plot
-        cbar_summ=plt.colorbar(cs_summ)
-        cbar_stdv=plt.colorbar(cs_stdv)
-        cbar_mean=plt.colorbar(cs_mean)
-
-        x1 = range(0,len(self.yrs))
-
+        cbar_summ=plt.colorbar(cs_summ); cbar_summ.ax.set_xlabel('# Obs.')
+        cbar_stdv=plt.colorbar(cs_stdv); cbar_stdv.ax.set_xlabel('Stdv')
+        cbar_mean=plt.colorbar(cs_mean); cbar_mean.ax.set_xlabel('Mean')
 
         self.ax.axes.xaxis.set_visible(True)
         self.ax.axes.yaxis.set_visible(True)
         self.ax.set_xlabel('Date')
-        self.ax.set_xticks(range(len(slices)*len(self.yrs)))
-        yyyymm = 100*self.yrs + self.mnths
-        self.ax.set_xticklabels(int32(yyyymm[x1]), minor=False, rotation=45)
+        self.ax.set_xticks(range(len(slices)*len(self.yrs)+1))
+
+        yyyymm = ['/'.join(["{:02d}".format(m),str(y)]) for m,y in zip(self.mnths,self.yrs)]
+        yyyymm.insert(0,'') # lazy - major_locator below is causing first entry to be dropped
+
+        self.ax.axes.xaxis.set_major_locator(MultipleLocator(3))
+        self.ax.axes.xaxis.set_minor_locator(MultipleLocator(1))
+        self.ax.set_xticklabels(yyyymm, minor=False, rotation=45)
+
+        self.ax.vlines(self.ax.get_xticks(),self.ax.get_ylim()[0],self.ax.get_ylim()[1],color='darkgray',linestyle=':')
 
 
     # def monthlyComp(self,case,allStats,stats=None,instruments=[],annotation=''):
@@ -280,7 +285,10 @@ class gritasFig:
         #           else '%s (x %s)'%(self.obType,str(1/self.scale))
         # mytitle += ' (%s)'%units if units != "1" else ''
 
-        self.ax.set_title('%s\nTime Window: %s/%s'%(self.obType.upper(),self.mnths,str(self.yrs)))
+        prettyTimeWindow = '%i/%i'%(self.mnths[0],self.yrs[0])
+        if len(self.mnths) > 1: prettyTimeWindow += ' - %i/%i'%(self.mnths[-1],self.yrs[-1])
+
+        self.ax.set_title('%s\nTime Window: %s'%(self.obType.upper(),prettyTimeWindow))
 
         # Get coordinates of axes
         # ------------------------

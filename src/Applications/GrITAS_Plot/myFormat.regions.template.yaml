@@ -9,16 +9,14 @@ global:
    - sum
 
    plot params:
-     time series: false
-     monthly: true
+     time series: true
+     monthly: false
      simple bars: true
      type: ratio
      regions:
      - glo
-     # - nhe
-     # - she
-     # - tro
-     # - nam
+     - she
+     - tro
      format: png
 
    ob count threshold for statistics: 0
@@ -42,9 +40,9 @@ global:
      f5294_fp:
        nickname: geosfp
        file name: /discover/nobackup/rtodling/Eval/__ID__/obs/NovDec22/__ID__.atms_npp_0h_gritas_omf.nc4
-     f5295_fpp:
-       nickname: geosfpp
-       file name: /discover/nobackup/rtodling/Eval/__ID__/obs/NovDec22/__ID__.atms_npp_0h_gritas_omf.nc4
+     # f5295_fpp:
+     #   nickname: geosfpp
+     #   file name: /discover/nobackup/rtodling/Eval/__ID__/obs/NovDec22/__ID__.atms_npp_0h_gritas_omf.nc4
 
    instruments:
      amsuan15:

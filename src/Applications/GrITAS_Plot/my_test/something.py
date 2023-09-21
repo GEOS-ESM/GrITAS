@@ -41,7 +41,7 @@ Res=plot_util.Residual(glob=Global,universe=Regions)
 
 # Set temporal information
 pandasDates = pd.date_range(start=Res.globalProps.startDate, end=Res.globalProps.endDate, freq='MS') #'D') #'MS')
-years = pandasDates.year; months = pandasDates.month
+years = pandasDates.year.to_list(); months = pandasDates.month.to_list()
 
 
 # Assume first and all files have data of same dimensions
