@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import yaml
 import common
 import sys, optparse
 import pandas as pd
@@ -9,14 +10,35 @@ parser = optparse.OptionParser(usage);
 
 parser.add_option("-d","--date",type=str,default='YYYYMMDD/YYYYMMDD',
                   help='Start/End dates of measurements - delimited via "/" (default = YYYYMMDD/YYYYMMDD)')
-parser.add_option('-r','--usrDefRegions',type=str,default='',
+parser.add_option("-e","--exp",type=str,default='',
+                  help='Yaml containing experiment(s) information')
+parser.add_option("-r", "--statsInRegions", type=str, default='REG1/REG2/...',
+                  help='Access statistics for these regions (default = REG1/REG2/...)')
+parser.add_option('--usrDefRegions',type=str,default='',
                   help='CSV file specifying user defined lat/lon regions to consider - ignored if empty (default = '')')
+parser.add_option("--dfs", action='store_true', default=False,
+                  help='Create yaml for DFS')
+parser.add_option("--impact", action='store_true', default=False,
+                  help='Create yaml for observation impact')
+parser.add_option("--resid", action='store_true', default=False,
+                  help='Create yaml for observation residuals')
+parser.add_option("--T", action='store_true', default=False,
+                  help='Form a time series plot')
+parser.add_option("--M", action='store_true', default=False,
+                  help='Form a monthly plot of statistics')
 
 # Parse the input arguments
 (options, args) = parser.parse_args()
 
+if int(options.dfs)+int(options.impact)+int(options.resid) != 1:
+    raise ValueError("Must select either dfs, impact, or resid!")
+
+if options.dfs: yamlOut='dfs.yaml'
+elif options.impact: yamlOut='impact.yaml'
+else: yamlOut='resid.yaml'
+
 # Output serialization
-out=open('regions.yaml','w')
+out=open(yamlOut,'w')
 myyam=common.myYML(out)
 
 
@@ -37,11 +59,13 @@ if options.usrDefRegions:
             name,lon,lat=l.split(' ')
             # lon/lat are strings - need tuple of floats
             lon=tuple(float(x) for x in lon.split(','))
-            lat=tuple(float(x) for x in lat.split(','))            
+            lat=tuple(float(x) for x in lat.split(','))
             defRegions.update({name: {'lon': lon, 'lat': lat}})
 #-----------------------------------------------------------------------------------------
 
-regions=[Region(k,v['lon'],v['lat']) for k,v in defRegions.items()]
+# Actual collection of regions to be considered - selects from defRegions and includes all in usrDefRegions
+# ----------------------------------------------------------------------------------------------------------
+regions=[Region(k,v['lon'],v['lat']) for k,v in defRegions.items() if k in options.statsInRegions.split('/')]
 
 # Bundle all regions focused on into a super set
 Universe=NestedDict('regions',regions)
@@ -55,16 +79,24 @@ Instruments = NestedDict('configure',[instrument(i,-10,10) for i in instrList])
 pandasDates = pd.date_range(start=options.date.split('/')[0],
                             end=options.date.split('/')[1],freq='D') #'MS')
 
-Global=globalProps(instruments=Instruments,comparator=monthlyComparator(True),
-                   startDate=pandasDates[0].strftime('%Y-%m-%d'),
-                   endDate=pandasDates[-1].strftime('%Y-%m-%d'), 
-                   nicknames=['GEOSIT'],
-                   expID=['amsua_metop-a'],
-                   fileName='/discover/nobackup/cegerer/GrITAS-work/$TMPNAME/omf/$STRDATE-$ENDDATE/$EXPID_gritas_omf.nc4',
-                   obCnt=0,obType='atmsnpp',regions=['glo'])
+# Get the experiments to consider
+# --------------------------------
+experiments = NestedDict('experiments');
+with open(options.exp, 'r') as f:
+    expYaml = yaml.load(f, Loader=yaml.FullLoader)
+    experiments.fromYaml(expYaml['experiments'],cls='EXPERIMENT')
 
-# nicknames=['geosfp', 'geosfpp'],
-# expID=['f5294_fp','f5295_fpp'],
+# Modify plot params
+# -------------------
+plotParams = PlotParams(regions=[r.name for r in regions],timeSeries=options.T,monthly=options.M,compVia='ratio')
+
+
+Global=globalProps(instruments=Instruments,comparator=comparator(True),
+                   experiments=experiments,plotParams=plotParams,
+                   startDate=pandasDates[0].strftime('%Y-%m-%d'),
+                   endDate=pandasDates[-1].strftime('%Y-%m-%d'),
+                   obCnt=0,obType='atmsnpp')
+
 
 Res=Residual(glob=Global,universe=Universe)
 Res.serialize(myyam,out)

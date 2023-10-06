@@ -159,7 +159,7 @@ class instrument(sharedFuncs):
         return self
 
 # An experiment class [NB: Experiment & instrument classes are functionally the same! Consider a factory?!]
-class Experiment:
+class Experiment(sharedFuncs):
     def __init__(self,name='Unspecified',nickname='Unspecified',pathToFile='./'):
         self.name=name
         self.nickname=nickname
@@ -208,19 +208,19 @@ class comparator(sharedFuncs):
 
 
 class PlotParams(sharedFuncs):
-    def __init__(self):
-        self.timeSeries=False
-        self.monthly=False
-        self.simpleBars=False
-        self.typ='Unspecified'
-        self.regions=[]
+    def __init__(self,regions=[],timeSeries=False,monthly=True,compVia='Unspecified'):
+        self.regions=regions
+        self.timeSeries=timeSeries
+        self.monthly=monthly
+        self.compareVia=compVia
+        self.simpleBars=True
         self.form='png'
 
     def fromYaml(self,yamlTop):
         self.timeSeries = yamlTop['time series']
         self.monthly = yamlTop['monthly']
         self.simpleBars = yamlTop['simple bars']
-        self.typ = yamlTop['type']
+        self.compareVia = yamlTop['compare via']
         self.regions = yamlTop['regions']
         self.form = yamlTop['format']
 
@@ -228,7 +228,7 @@ class PlotParams(sharedFuncs):
         return self.yamlStruc(('time series', self.timeSeries),
                               ('monthly', self.monthly),
                               ('simple bars', self.simpleBars),
-                              ('type', self.typ),
+                              ('compare via', self.compareVia),
                               ('regions', self.regions),
                               ('format', self.form))
 
@@ -328,7 +328,7 @@ class globalProps(sharedFuncs):
 
     def __init__(self,instruments=NestedDict('instruments',[instrument()]),
                  experiments=NestedDict('experiments',[Experiment()]),
-                 comparator=comparator(True),**kwargs):
+                 comparator=comparator(True),plotParams=PlotParams(),**kwargs):
         self.name='global'
         self.startDate=kwargs.get('startDate')
         self.endDate=kwargs.get('endDate')
@@ -336,10 +336,10 @@ class globalProps(sharedFuncs):
         self.obCnt=kwargs.get('obCnt')
         self.obType=kwargs.get('obType')
 
-        self.supportedStats=kwargs.get('supported stats')
+        self.supportedStats=kwargs.get('supported stats') if kwargs.get('supported stats') else ['mean', 'stdv', 'sum']
 
-        self.plotParams=PlotParams()
         self.stats=Stats() #'Standard Deviation',True)
+        self.plotParams=plotParams
         self.experiments=experiments
         self.instruments=instruments
         self.comparator=comparator
@@ -379,15 +379,10 @@ class globalProps(sharedFuncs):
         toYaml = self.yamlStruc(('start date',                       self.startDate),
                                 ('end date',                         self.endDate),
                                 ('supported stats',                  self.supportedStats),
-                                ('nicknames',                        self.nicknames),
-                                ('experiment identifier',            self.expID),
-                                ('file name',                        self.fileName),
                                 ('ob count threshold for statistics', self.obCnt),
-                                ('obtype',                           self.obType),
-                                ('regions',                          self.regions),
-                                ('figure type',                      self.figType),
-                                ('monthly plot',                     self.monthlyPlot),
-                                ('time series plot',                 self.tSeriesPlot))
+                                ('obtype',                           self.obType))
+
+        toYaml.update({'experiments': self.experiments.toYaml()})
         toYaml.update({'plot params': self.plotParams.toYaml()})
         toYaml.update({'statistics': self.stats.toYaml()})
         toYaml.update({'instruments': self.instruments.toYaml()})

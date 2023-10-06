@@ -155,13 +155,17 @@ for nr,region in enumerate(Res.globalProps.plotParams.regions):
         nicknames = [exp.nickname for exp in Res.globalProps.experiments.members]
 
 
-
+        print(years)
+        print(months)
+        print(type(years))
+        print(type(months))
         if Res.globalProps.plotParams.monthly:
             datGritas['Exp'].plotInit(nicknames,Res.globalProps.obType,\
                                       Res.universe[region],Res.globalProps.stats.scale,\
                                       Res.globalProps.plotParams.simpleBars,typ='monthly',\
-                                      yrs=years[0],mnths=str(months[0]).rjust(2,'0'))
-            datGritas['Exp'].monthlyComp(Res.globalProps.plotParams.typ,
+                                      yrs=years,mnths=months)
+                                      # yrs=years[0],mnths=str(months[0]).rjust(2,'0'))
+            datGritas['Exp'].monthlyComp(Res.globalProps.plotParams.compareVia,
                                          allStats[:,1,nr,stdvIdx],allStats[:,0,nr,stdvIdx],
                                          stats=Res.globalProps.stats,
                                          instruments=Res.globalProps.instruments,annotation=nicknames)

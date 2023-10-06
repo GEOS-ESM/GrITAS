@@ -43,8 +43,13 @@ class gritasFig:
         self.yrs=yrs
         self.mnths=mnths
 
+        self.yyyymm='%s%s'%(yrs[0],str(mnths[0]).rjust(2,'0'))
+        if len(yrs) > 1 or len(mnths) > 1:
+            self.yyyymm += '-%s%s'%(yrs[-1],str(mnths[-1]).rjust(2,'0'))
+
+
         self.figName='%s_%s_%s_%s_%s.%s'%(self.prefix,self.obType,self.region.name,self.typ,\
-                                          str(self.yrs)+self.mnths,self.figType)\
+                                          self.yyyymm,self.figType)\
             if self.typ == 'monthly' else\
                '%s_%s_%s_%s.%s'%(self.prefix,self.typ,self.obType,self.region.name,self.figType)
 
@@ -194,10 +199,9 @@ class gritasFig:
         self.ax.vlines(self.ax.get_xticks(),self.ax.get_ylim()[0],self.ax.get_ylim()[1],color='darkgray',linestyle=':')
 
 
-    # def monthlyComp(self,case,allStats,stats=None,instruments=[],annotation=''):
-    def monthlyComp(self,case,expStats,cntlStats,stats=None,instruments=[],annotation=''):
+    def monthlyComp(self,compareVia,expStats,cntlStats,stats=None,instruments=[],annotation=''):
         print("IN MONTHLYCOMP (formerly monthlyPlot)")
-        allStats=100*(expStats/cntlStats) if case == 'ratio' else expStats - cntlStats
+        allStats=100*(expStats/cntlStats) if compareVia == 'ratio' else expStats - cntlStats
 
         # Capture minval/maxval
         minval, maxval = self.commonFigSetup(allStats,stats.units,instruments,flavor=annotation)
@@ -207,23 +211,23 @@ class gritasFig:
         pos = arange(len(allStats)) #+nf*bar_width
 
         # For the moment, we will only compare difference in means (blue) or ratio of stdv's (red)
-        ecolor = 'b' if case == 'difference' else 'r'
+        ecolor = 'b' if compareVia == 'difference' else 'r'
 
         # Include confidence levels
         # --------------------------
         if stats.confidence:
-            # xerr based on case
-            xerr = self.studT if case == 'difference' else [self.leftChi2,self.rightChi2]
+            # xerr based on compareVia
+            xerr = self.studT if compareVia == 'difference' else [self.leftChi2,self.rightChi2]
             # Multiply by sample stdv. of Exp, thus completing formation of CL
             xerr*=expStats # this is okay, since this method is only called for ratio
 
-            if case == 'difference':
+            if compareVia == 'difference':
                 self.ax.plot(zeros(len(allStats)), pos, color='k', lw=1, alpha=0.8)
-            if case == 'ratio':
+            if compareVia == 'ratio':
                 refline=midpnt*ones(len(allStats))
                 self.ax.plot(refline, pos, color='k', lw=1, alpha=0.8)
 
-            # Plot errorbars regardless of case
+            # Plot errorbars regardless of compareVia
             self.ax.errorbar(allStats, pos, xerr=xerr, ecolor=ecolor, lw=2, capsize=5, ls=':', color='gray')
         else:
             self.ax.plot(allStats,pos)
@@ -285,6 +289,10 @@ class gritasFig:
         #           else '%s (x %s)'%(self.obType,str(1/self.scale))
         # mytitle += ' (%s)'%units if units != "1" else ''
 
+        print(self.mnths)
+        print(self.yrs)
+        prettyTimeWindow = ['/'.join(["{:02d}".format(m),str(y)]) for m,y in zip(self.mnths,self.yrs)]
+        print(prettyTimeWindow)
         prettyTimeWindow = '%i/%i'%(self.mnths[0],self.yrs[0])
         if len(self.mnths) > 1: prettyTimeWindow += ' - %i/%i'%(self.mnths[-1],self.yrs[-1])
 
