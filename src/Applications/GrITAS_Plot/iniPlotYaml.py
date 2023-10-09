@@ -14,18 +14,23 @@ parser.add_option("-e","--exp",type=str,default='',
                   help='Yaml containing experiment(s) information')
 parser.add_option("-r", "--statsInRegions", type=str, default='REG1/REG2/...',
                   help='Access statistics for these regions (default = REG1/REG2/...)')
-parser.add_option('--usrDefRegions',type=str,default='',
-                  help='CSV file specifying user defined lat/lon regions to consider - ignored if empty (default = '')')
+
 parser.add_option("--dfs", action='store_true', default=False,
                   help='Create yaml for DFS')
 parser.add_option("--impact", action='store_true', default=False,
                   help='Create yaml for observation impact')
 parser.add_option("--resid", action='store_true', default=False,
                   help='Create yaml for observation residuals')
-parser.add_option("--T", action='store_true', default=False,
-                  help='Form a time series plot')
+parser.add_option("--tSeriesVar", type=str, default='',
+                  help="Specify stat to view time series for - ignored if options.T is False (default = '')")
+parser.add_option('--usrDefRegions',type=str,default='',
+                  help='CSV file specifying user defined lat/lon regions to consider - ignored if empty (default = '')')
+parser.add_option("--C", action='store_true', default=False,
+                  help='Form confidence intervals')
 parser.add_option("--M", action='store_true', default=False,
                   help='Form a monthly plot of statistics')
+parser.add_option("--T", action='store_true', default=False,
+                  help='Form a time series plot')
 
 # Parse the input arguments
 (options, args) = parser.parse_args()
@@ -33,9 +38,15 @@ parser.add_option("--M", action='store_true', default=False,
 if int(options.dfs)+int(options.impact)+int(options.resid) != 1:
     raise ValueError("Must select either dfs, impact, or resid!")
 
-if options.dfs: yamlOut='dfs.yaml'
-elif options.impact: yamlOut='impact.yaml'
-else: yamlOut='resid.yaml'
+if options.dfs:
+    yamlOut='dfs.yaml'
+    statsFlavor='DFS per Ob'
+elif options.impact:
+    yamlOut='impact.yaml'
+    statsFlavor='Ob count'
+else:
+    yamlOut='resid.yaml'
+    statsFlavor='Standard Deviation'
 
 # Output serialization
 out=open(yamlOut,'w')
@@ -72,7 +83,7 @@ Universe=NestedDict('regions',regions)
 
 # Instantiate instruments
 instrList = ['amsuan15', 'amsuan19', 'atmsnpp']
-Instruments = NestedDict('configure',[instrument(i,-10,10) for i in instrList])
+Instruments = NestedDict('configure',[Instrument(i,-10,10) for i in instrList])
 
 
 # Declare temporal window to investigate
@@ -88,15 +99,17 @@ with open(options.exp, 'r') as f:
 
 # Modify plot params
 # -------------------
-plotParams = PlotParams(regions=[r.name for r in regions],timeSeries=options.T,monthly=options.M,compVia='ratio')
+plotParams = PlotParams(regions=[r.name for r in regions],timeSeries=options.T,timeSeriesVar=options.tSeriesVar,
+                        monthly=options.M,compVia='ratio')
 
 
-Global=globalProps(instruments=Instruments,comparator=comparator(True),
+Global=GlobalProps(instruments=Instruments,comparator=Comparator(True),
                    experiments=experiments,plotParams=plotParams,
+                   stats=Stats(flav=statsFlavor,confInterval=options.C),
                    startDate=pandasDates[0].strftime('%Y-%m-%d'),
                    endDate=pandasDates[-1].strftime('%Y-%m-%d'),
                    obCnt=0,obType='atmsnpp')
 
 
-Res=Residual(glob=Global,universe=Universe)
-Res.serialize(myyam,out)
+SV=StatsViewer(glob=Global,universe=Universe)
+SV.serialize(myyam,out)

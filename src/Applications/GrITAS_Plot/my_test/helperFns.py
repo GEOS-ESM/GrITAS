@@ -31,41 +31,22 @@ def lvlAvg(arr,mask):
 
 
 class gritasFig:
-    def __init__(self,prefix,obType,region,scale,simpleBars,typ='invalid',yrs=None,mnths=None):
+    def __init__(self,prefix,obType,region,scale,simpleBars,yrs=None,mnths=None):
         self.prefix=''.join(prefix) if isinstance(prefix, str) else 'X'.join(prefix)
         self.obType=obType
         self.region=region
         self.scale=scale
         self.simpleBars=simpleBars
-        self.typ=typ
+        self.typ='invalid'
         self.figType='png'
-        # Either a single year/month or (pandas) collection of several
         self.yrs=yrs
         self.mnths=mnths
-
-        self.yyyymm='%s%s'%(yrs[0],str(mnths[0]).rjust(2,'0'))
-        if len(yrs) > 1 or len(mnths) > 1:
-            self.yyyymm += '-%s%s'%(yrs[-1],str(mnths[-1]).rjust(2,'0'))
-
-
-        self.figName='%s_%s_%s_%s_%s.%s'%(self.prefix,self.obType,self.region.name,self.typ,\
-                                          self.yyyymm,self.figType)\
-            if self.typ == 'monthly' else\
-               '%s_%s_%s_%s.%s'%(self.prefix,self.typ,self.obType,self.region.name,self.figType)
-
-        self.fig = plt.figure(figsize=(8,10)) if self.typ == 'monthly' else plt.figure(figsize=(10,10))
-        self.fig.tight_layout(pad=1.0)
-        self.ax=self.fig.gca()
-        self.ax.set_facecolor('#CECECE')
-        self.minLabelSize=4
-        self.maxLabelSize=7
-
-        self.opacity=0.5
-        self.bar_width=0.4 #1.0/3 #0.6
-        self.error_config = {'ecolor': '0.3'}
+        self.yyyymm='%s%s'%(self.yrs[0],str(self.mnths[0]).rjust(2,'0'))
+        if len(self.yrs) > 1 or len(self.mnths) > 1:
+            self.yyyymm += '-%s%s'%(self.yrs[-1],str(self.mnths[-1]).rjust(2,'0'))
 
     def monthlyStat(self,allStats,stats=None,instruments=[],flavor='None',annotation=None):
-        print("IN MONTHLYSTAT (formerly monthlyBars)")
+        self.typ='monthly'
         self.commonFigSetup(allStats,stats.units,instruments,flavor=flavor)
 
 
@@ -73,7 +54,6 @@ class gritasFig:
         for ns, stat in enumerate(self.supportedStats):
             if stat not in stats.measures:
                 continue
-            print("--- with ns, stat = %i, %s"%(ns,stat))
             statAllLvls=allStats[:,ns]
 
             # Set center of bars
@@ -157,32 +137,43 @@ class gritasFig:
 
 
     def tSeries(self,allStats,stats=None,instruments=[],flavor='None'):
+        self.typ='tseries'
+        # Capture minval/maxval
+        minval,maxval = self.commonFigSetup(allStats,stats.units,instruments,flavor=flavor)
+
         # Make copies of allStats for masking
         slices=[allStats.copy(), allStats.copy(), allStats.copy()]
         # Mask
         for n,s in enumerate(slices):
             s[:,(n+1)%len(slices)]=s[:,(n+2)%len(slices)]=np.nan
 
-        # Capture minval/maxval
-        minval,maxval = self.commonFigSetup(allStats,stats.units,instruments,flavor=flavor)
+        cs=None
+        cbarLabel=''
 
         rval = maxval/minval if minval < 0.0 else minval/maxval
         if rval < 0.0:
             maxval= max(abs(minval),abs(maxval))
             minval=-maxval
 
-            cs_mean=self.ax.pcolor(slices[0],cmap=plt.cm.Blues,vmin=np.nanmin(slices[0]),\
-                                   vmax=np.nanmax(slices[0]))
-            cs_stdv=self.ax.pcolor(slices[1],cmap=plt.cm.autumn_r,vmin=np.nanmin(slices[1]),\
-                                   vmax=np.nanmax(slices[1]))
-            cs_summ=self.ax.pcolor(slices[2],cmap=plt.cm.Greens,vmin=0,vmax=np.nanmax(slices[2]))
+            if flavor == 'mean':
+                cs=self.ax.pcolor(slices[0],cmap=plt.cm.Blues,vmin=np.nanmin(slices[0]),\
+                                  vmax=np.nanmax(slices[0]))
+                cbarLabel=flavor.capitalize()
+            elif flavor == 'stdv':
+                cs=self.ax.pcolor(slices[1],cmap=plt.cm.autumn_r,vmin=np.nanmin(slices[1]),\
+                                  vmax=np.nanmax(slices[1]))
+                cbarLabel=flavor.capitalize()
+            elif flavor == 'sum':
+                cs=self.ax.pcolor(slices[2],cmap=plt.cm.Greens,vmin=0,vmax=np.nanmax(slices[2]))
+                cbarLabel='# Obs.'
 
         else:
             cs=plt.pcolor(DUM,cmap=plt.cm.binary,vmin=minval,vmax=maxval)
         # Add colorbars to plot
-        cbar_summ=plt.colorbar(cs_summ); cbar_summ.ax.set_xlabel('# Obs.')
-        cbar_stdv=plt.colorbar(cs_stdv); cbar_stdv.ax.set_xlabel('Stdv')
-        cbar_mean=plt.colorbar(cs_mean); cbar_mean.ax.set_xlabel('Mean')
+        cbar = plt.colorbar(cs); cbar.ax.set_xlabel(cbarLabel)
+        # cbar_summ=plt.colorbar(cs_summ); cbar_summ.ax.set_xlabel('# Obs.')
+        # cbar_stdv=plt.colorbar(cs_stdv); cbar_stdv.ax.set_xlabel('Stdv')
+        # cbar_mean=plt.colorbar(cs_mean); cbar_mean.ax.set_xlabel('Mean')
 
         self.ax.axes.xaxis.set_visible(True)
         self.ax.axes.yaxis.set_visible(True)
@@ -200,9 +191,10 @@ class gritasFig:
 
 
     def monthlyComp(self,compareVia,expStats,cntlStats,stats=None,instruments=[],annotation=''):
-        print("IN MONTHLYCOMP (formerly monthlyPlot)")
+        # Modify allStats based on how the two experiments should be compared
         allStats=100*(expStats/cntlStats) if compareVia == 'ratio' else expStats - cntlStats
 
+        self.typ='monthly'
         # Capture minval/maxval
         minval, maxval = self.commonFigSetup(allStats,stats.units,instruments,flavor=annotation)
 
@@ -236,11 +228,8 @@ class gritasFig:
         # -------------------
         self.fig.suptitle('CTL: %s'%annotation[0], x=0.125, y=0.93, ha='left', fontsize=14)
         self.ax.set_title('EXP: %s'%annotation[1], loc='left', fontsize=14)
-        # self.ax.annotate(self.obType.upper(), xy=(maxval-0.06*maxval,amax(pos)-0.5),
-        #                  size=12, ha='left', va="bottom")
 
         # Plot deterioration/improvement boxes #midpnt+0.0195*midpnt
-        # -----------------------------------------------------------
         self.ax.annotate('Deterioration', xy=(maxval-0.0195*(maxval-minval),0.5), xycoords='data',
                          xytext=(0,0), textcoords='offset points',
                          size=13, ha='right', va="center",
@@ -253,11 +242,18 @@ class gritasFig:
 
 
     def commonFigSetup(self,allStats,units,instruments,flavor='None'):
-        minval, maxval = float(instruments[self.obType]._min), float(instruments[self.obType]._max)
-        self.ax.set_xlim([minval,maxval]) if minval != maxval else self.ax.set_xlim([amin(allStats),\
-                                                                                     amax(allStats)])
-
+        self.figName='%s_%s_%s_%s_%s.%s'%(self.prefix,self.obType,self.region.name,self.typ,self.yyyymm,self.figType)
+        self.fig = plt.figure(figsize=(8,10)) if self.typ == 'monthly' else plt.figure(figsize=(10,10))
+        self.fig.tight_layout(pad=1.0)
+        self.ax=self.fig.gca()
+        self.ax.set_facecolor('#CECECE')
+        self.minLabelSize=4
+        self.maxLabelSize=7
+        self.opacity=0.5
+        self.bar_width=0.4
+        self.error_config = {'ecolor': '0.3'}
         self.ax.margins(y=0)
+
         for label in self.ax.get_xticklabels():
             label.set_fontsize(self.maxLabelSize) #10
             label.set_fontweight('bold')
@@ -265,11 +261,6 @@ class gritasFig:
         yticks = range(0,self.getDim('lev'))
         self.ax.margins(y=0)
         for label in self.ax.get_yticklabels():
-            # if vname in ['airs','iasi','cris']:
-            #     label.set_fontsize(self.minLabelSize)
-            # else:
-            #     label.set_fontsize(self.maxLabelSize)
-
             label.set_fontsize(self.maxLabelSize) if self.getDim('lev') <= 30 else label.set_fontsize(self.minLabelSize)
             label.set_fontweight('bold')
 
@@ -285,31 +276,28 @@ class gritasFig:
         self.ax.set_yticklabels(int32(self.loc['lev'][yticks]), minor=False, rotation=0)
 
 
-        # mytitle = '%s (x %s)'%(flavor,str(1/self.scale)) if self.typ == 'tseries'\
-        #           else '%s (x %s)'%(self.obType,str(1/self.scale))
-        # mytitle += ' (%s)'%units if units != "1" else ''
-
-        print(self.mnths)
-        print(self.yrs)
-        prettyTimeWindow = ['/'.join(["{:02d}".format(m),str(y)]) for m,y in zip(self.mnths,self.yrs)]
-        print(prettyTimeWindow)
         prettyTimeWindow = '%i/%i'%(self.mnths[0],self.yrs[0])
         if len(self.mnths) > 1: prettyTimeWindow += ' - %i/%i'%(self.mnths[-1],self.yrs[-1])
 
         self.ax.set_title('%s\nTime Window: %s'%(self.obType.upper(),prettyTimeWindow))
 
         # Get coordinates of axes
-        # ------------------------
         _x0,_y0,_width,_height=self.ax.get_position().bounds
         # Include instrument hame and lat/lon coordinates on figure
-        # ----------------------------------------------------------
-        # self.fig.text(_x0,_y0+_height+0.005,"%s"%self.obType,ha='left',fontsize=14)
         self.fig.text(_x0+_width,_y0+_height+0.005,'%s\n%s'%(self.region.name,self.region),ha='right',fontsize=14)
+
+        minval, maxval = float(instruments[self.obType]._min), float(instruments[self.obType]._max)
+        self.ax.set_xlim([minval,maxval]) if minval != maxval else self.ax.set_xlim([amin(allStats),\
+                                                                                     amax(allStats)])
 
         return minval, maxval
 
+
     def saveFig(self):
-        plt.savefig(self.figName)
+        '''
+        Saves the current figure should it exist
+        '''
+        if self.figExist: plt.savefig(self.figName)
 
 
 class gritasVars:
@@ -455,6 +443,6 @@ class Gritas(gritasVars,gritasFig):
         self.studT = studT
 
 
-    def plotInit(self,prefix,obType,region,scale,simpleBars,typ,yrs,mnths):
-        gritasFig.__init__(self,prefix,obType,region,scale,simpleBars,typ,yrs,mnths)
+    def plotInit(self,prefix,obType,region,scale,simpleBars,yrs,mnths):
+        gritasFig.__init__(self,prefix,obType,region,scale,simpleBars,yrs,mnths)
         self.figExist=True

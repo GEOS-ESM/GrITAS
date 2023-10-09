@@ -15,5 +15,15 @@ class myYML:
     def writeObj(self,obj):
         yaml.dump(obj,stream=self.out,sort_keys=self.sort_keys,\
                   default_flow_style=self.default_flow_style,indent=self.indent)
-        # yaml.write_line_break(yaml.Dumper)
-        # yaml.dump(u'\n',stream=self.out)
+
+
+# For debugging
+#----------------------------------------
+def verboseDict(d,indent=''):
+    for k,v in d.items():
+        pref='%s%s :'%(indent,k)
+        if type(v)==dict:
+            print(pref)
+            verboseDict(v,indent+'  ')
+        else:
+            print("%s %s"%(pref,v))

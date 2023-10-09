@@ -2,27 +2,15 @@
 
 import common
 
-# For debugging
-#----------------------------------------
-def verboseDict(d,indent=''):
-    for k,v in d.items():
-        pref='%s%s :'%(indent,k)
-        if type(v)==dict:
-            print(pref)
-            verboseDict(v,indent+'  ')
-        else:
-            print("%s %s"%(pref,v))
-
-
 # Domain of latitude/longitude - nothing but a glorified tuple
 #---------------------------------------------------
-class coordRange:
+class CoordRange:
     def __init__(self,_range):
         self._min, self._max=_range
 
 # Some global properties
 #--------------------------
-class sharedFuncs:
+class SharedFuncs:
     def __init__(self,name,*args):
         self.name=name
         self.collect=self.yamlStruc(args)
@@ -33,11 +21,11 @@ class sharedFuncs:
 
 # A single region to be focused on
 #---------------------------------------------------
-class Region(sharedFuncs):
+class Region(SharedFuncs):
     def __init__(self,name='globe',lonRange=(0.0,360.0),latRange=(-90.0,90.0)):
         self.name=name
-        self.longitude = coordRange(lonRange)
-        self.latitude = coordRange(latRange)
+        self.longitude = CoordRange(lonRange)
+        self.latitude = CoordRange(latRange)
 
     def __pretty_lat__(self,l):
         if l < 0:   return '%.1fS'%abs(l)
@@ -53,12 +41,6 @@ class Region(sharedFuncs):
         return '%s - %s\n%s - %s'%(self.__pretty_lat__(self.latitude._min),self.__pretty_lat__(self.latitude._max),\
                                    self.__pretty_lon__(self.longitude._min),self.__pretty_lon__(self.longitude._max))
 
-    # def __repr__(self):
-    #     return 'Region instance "%s":\n\tLongitude : (%.1f,%.1f)\n\tLatitude  : (%.1f,%.1f)\n'%\
-    #         (self.name,self.longitude._min,self.longitude._max,self.latitude._min,self.latitude._max)
-
-
-    # Serialize an instance of Region
     def serialize(self,yam):
         yam.writeObj({self.name: self.toYaml})
 
@@ -68,8 +50,8 @@ class Region(sharedFuncs):
 
     def fromYaml(self,yamlTop,**kwargs):
         self.name=kwargs['name']
-        self.longitude = coordRange((yamlTop['lona'],yamlTop['lonb']))
-        self.latitude = coordRange((yamlTop['lata'],yamlTop['latb']))
+        self.longitude = CoordRange((yamlTop['lona'],yamlTop['lonb']))
+        self.latitude = CoordRange((yamlTop['lata'],yamlTop['latb']))
         return self
 
 
@@ -98,10 +80,8 @@ class NestedDict:
             if m.name == key: return m
         raise KeyError('Region "%s" is not a member of Universe regions'%key)
 
-
     def size(self):
         return len(self.members)
-
 
     def toYaml(self):
         return {mem.name:mem.toYaml() for mem in self.members}
@@ -113,7 +93,7 @@ class NestedDict:
 
         for k in yamlTop.keys():
             if cls=='INSTRUMENT':
-                self.append( instrument().fromYaml(yamlTop[k],name=k) )
+                self.append( Instrument().fromYaml(yamlTop[k],name=k) )
             elif cls=='EXPERIMENT':
                 self.append( Experiment().fromYaml(yamlTop[k],name=k) )
             else:
@@ -131,7 +111,7 @@ class NestedDict:
 
 # Collect configuration info for different instruments
 #-------------------------------------------------------
-class instrument(sharedFuncs):
+class Instrument(SharedFuncs):
     def __init__(self,name='Unspecified',_min=0,_max=0,vertUnits='index'):
         self.name=name
         self._min=_min
@@ -139,10 +119,9 @@ class instrument(sharedFuncs):
         self.vertUnits=vertUnits
 
     def __repr__(self):
-        return 'instrument instance "%s":\n\t (min,max) = (%i,%i)\t vertUnits = %s\n'%(self.name,
+        return 'Instrument instance "%s":\n\t (min,max) = (%i,%i)\t vertUnits = %s\n'%(self.name,
                                                                                        self._min,self._max,
                                                                                        self.vertUnits)
-    # Serialize instance of instrument
     def serialize(self,yam):
         yam.writeObj({self.name: self.toYaml()})
 
@@ -158,8 +137,8 @@ class instrument(sharedFuncs):
         self.vertUnits=yamlTop['vertical units']
         return self
 
-# An experiment class [NB: Experiment & instrument classes are functionally the same! Consider a factory?!]
-class Experiment(sharedFuncs):
+# An experiment class [NB: Experiment & Instrument classes are functionally the same! Consider a factory?!]
+class Experiment(SharedFuncs):
     def __init__(self,name='Unspecified',nickname='Unspecified',pathToFile='./'):
         self.name=name
         self.nickname=nickname
@@ -168,7 +147,6 @@ class Experiment(sharedFuncs):
     def __repr__(self):
         return 'Experiment instance "%s":\n\t nicknamed = %s\n\t path = %s\n'%(self.name,self.nickname,self.pathToFile)
 
-    # Serialize instance of Experiment
     def serialize(self,yam):
         yam.writeObj({self.name: self.toYaml()})
 
@@ -182,9 +160,7 @@ class Experiment(sharedFuncs):
         self.pathToFile=yamlTop['file name']
         return self
 
-
-
-class comparator(sharedFuncs):
+class Comparator(SharedFuncs):
     def __init__(self,monthly,typ='ratio'):
         self.name='compare monthly'
         self.monthly=monthly
@@ -192,7 +168,7 @@ class comparator(sharedFuncs):
 
     def help(self):
         availTypes=['ratio','difference','trivial']
-        print("Available monthly comparator types = \n")
+        print("Available monthly Comparator types = \n")
         for n,a in enumerate(availTypes):
             print("\t\t%i) %s"%(n+1,a))
 
@@ -207,10 +183,11 @@ class comparator(sharedFuncs):
         yam.writeObj({'Comparator': self.toYaml})
 
 
-class PlotParams(sharedFuncs):
-    def __init__(self,regions=[],timeSeries=False,monthly=True,compVia='Unspecified'):
+class PlotParams(SharedFuncs):
+    def __init__(self,regions=[],timeSeries=False,timeSeriesVar='',monthly=True,compVia='Unspecified'):
         self.regions=regions
         self.timeSeries=timeSeries
+        self.timeSeriesVar=timeSeriesVar
         self.monthly=monthly
         self.compareVia=compVia
         self.simpleBars=True
@@ -218,6 +195,7 @@ class PlotParams(sharedFuncs):
 
     def fromYaml(self,yamlTop):
         self.timeSeries = yamlTop['time series']
+        self.timeSeriesVar = yamlTop['time series var']
         self.monthly = yamlTop['monthly']
         self.simpleBars = yamlTop['simple bars']
         self.compareVia = yamlTop['compare via']
@@ -226,6 +204,7 @@ class PlotParams(sharedFuncs):
 
     def toYaml(self):
         return self.yamlStruc(('time series', self.timeSeries),
+                              ('time series var', self.timeSeriesVar),
                               ('monthly', self.monthly),
                               ('simple bars', self.simpleBars),
                               ('compare via', self.compareVia),
@@ -236,19 +215,19 @@ class PlotParams(sharedFuncs):
         yam.writeObj(self.toYaml)
 
 
-class Stats(sharedFuncs):
+class Stats(SharedFuncs):
     def __init__(self,flav='Unspecified',confInterval=True):
         self.flavor=flav
         self.scale, self.units=self.__set__()
-        self.measures=['mean','stdv'] # How is this different from flavor??
+        self.measures=['mean','stdv']
         self.colors=[c for c in ['b','r','g','k'][:len(self.measures)]]
         self.confidence=confInterval
 
     def __set__(self):
         if self.flavor   == 'Unspecified': return -1,-1
-        if self.flavor   == 'Standard Deviation': return '%.1f'%1,'%'
-        elif self.flavor == 'DFS per Ob':         return '%.1e'%10000,'1'
-        elif self.flavor == 'Ob count':           return '%.1f'%1,'1'
+        if self.flavor   == 'Standard Deviation': return 1.0,'%'
+        elif self.flavor == 'DFS per Ob':         return 1e4,'1'
+        elif self.flavor == 'Ob count':           return 1.0,'1'
         else:
             raise ValueError("Unsupported Stats Flavor = %s\n- Supported Flavors: %s, %s, %s"
                              %(self.flavor,'Standard Deviation','DFS per Ob','Ob count'))
@@ -274,7 +253,7 @@ class Stats(sharedFuncs):
 
 # Global properties
 #------------------------------------------
-class globalProps(sharedFuncs):
+class GlobalProps(SharedFuncs):
     '''
     Will incorporate the following structures
 
@@ -303,7 +282,7 @@ class globalProps(sharedFuncs):
     monthly plot : bool
     time series plot : bool
 
-    <comparator>
+    <Comparator>
     monthly : bool
     type : str (among 'ratio', 'difference', 'trivial')
 
@@ -312,8 +291,8 @@ class globalProps(sharedFuncs):
         nickname: str
         file name: str
 
-    <instruments>
-      <instrument>
+    <Instruments>
+      <Instrument>
       vertical units : str
       min value : float
       max value : float
@@ -326,27 +305,23 @@ class globalProps(sharedFuncs):
     latb : float
     '''
 
-    def __init__(self,instruments=NestedDict('instruments',[instrument()]),
+    def __init__(self,instruments=NestedDict('instruments',[Instrument()]),
                  experiments=NestedDict('experiments',[Experiment()]),
-                 comparator=comparator(True),plotParams=PlotParams(),**kwargs):
+                 comparator=Comparator(True),plotParams=PlotParams(),stats=Stats(),**kwargs):
         self.name='global'
-        self.startDate=kwargs.get('startDate')
-        self.endDate=kwargs.get('endDate')
-
-        self.obCnt=kwargs.get('obCnt')
-        self.obType=kwargs.get('obType')
-
-        self.supportedStats=kwargs.get('supported stats') if kwargs.get('supported stats') else ['mean', 'stdv', 'sum']
-
-        self.stats=Stats() #'Standard Deviation',True)
-        self.plotParams=plotParams
+        self.comparator=comparator
         self.experiments=experiments
         self.instruments=instruments
-        self.comparator=comparator
+        self.plotParams=plotParams
+        self.stats=stats
+        self.startDate=kwargs.get('startDate')
+        self.endDate=kwargs.get('endDate')
+        self.obCnt=kwargs.get('obCnt')
+        self.obType=kwargs.get('obType')
+        self.supportedStats=kwargs.get('supported stats') if kwargs.get('supported stats') else ['mean', 'stdv', 'sum']
+        self.__parseWildCards__()
 
-        self.parseWildCards()
-
-    def parseWildCards(self):
+    def __parseWildCards__(self):
         try:
             self.fileName=self.fileName.replace("$STRDATE",self.startDate.replace('-',''))
             self.fileName=self.fileName.replace("$ENDDATE",self.endDate.replace('-',''))
@@ -369,10 +344,10 @@ class globalProps(sharedFuncs):
 
         self.stats.fromYaml(yamlTop['statistics'])
         self.experiments.fromYaml(yamlTop['experiments'],cls='EXPERIMENT')
-        self.instruments.fromYaml(yamlTop['instruments'],cls='INSTRUMENT') #instrument())
+        self.instruments.fromYaml(yamlTop['instruments'],cls='INSTRUMENT')
         self.plotParams.fromYaml(yamlTop['plot params'])
 
-        self.parseWildCards()
+        self.__parseWildCards__()
 
 
     def serialize(self,yam):
@@ -390,16 +365,15 @@ class globalProps(sharedFuncs):
         yam.writeObj({self.name: toYaml})
 
 
-# Main class for visualizing residuals from GrITAS
-#------------------------------------------
-class Residual:
-    def __init__(self,glob=globalProps(),universe=NestedDict('regions',[Region()])):
+# Main class for visualizing time averaged statistics from GrITAS
+#-----------------------------------------------------------------
+class StatsViewer:
+    def __init__(self,glob=GlobalProps(),universe=NestedDict('regions',[Region()])):
         self.globalProps=glob
         self.universe=universe
 
     def serialize(self,yam,out):
         self.globalProps.serialize(yam)
-        out.write("\n")
         self.universe.serialize(yam)
 
 
