@@ -160,31 +160,8 @@ class Experiment(SharedFuncs):
         self.pathToFile=yamlTop['file name']
         return self
 
-class Comparator(SharedFuncs):
-    def __init__(self,monthly,typ='ratio'):
-        self.name='compare monthly'
-        self.monthly=monthly
-        self.typ=typ
-
-    def help(self):
-        availTypes=['ratio','difference','trivial']
-        print("Available monthly Comparator types = \n")
-        for n,a in enumerate(availTypes):
-            print("\t\t%i) %s"%(n+1,a))
-
-    def toYaml(self):
-        return self.yamlStruc(('monthly',self.monthly), ('type', self.typ))
-
-    def fromYaml(self,yamlTop):
-        self.monthly=yamlTop['monthly']
-        self.typ=yamlTop['type']
-
-    def serialize(self,yam):
-        yam.writeObj({'Comparator': self.toYaml})
-
-
 class PlotParams(SharedFuncs):
-    def __init__(self,regions=[],timeSeries=False,timeSeriesVar='',monthly=True,compVia='Unspecified'):
+    def __init__(self,regions=[],timeSeries=False,timeSeriesVar='',monthly=True,compVia='ratio'):
         self.regions=regions
         self.timeSeries=timeSeries
         self.timeSeriesVar=timeSeriesVar
@@ -192,6 +169,15 @@ class PlotParams(SharedFuncs):
         self.compareVia=compVia
         self.simpleBars=True
         self.form='png'
+        self.__valid__()
+
+    def __valid__(self):
+        '''
+        Ensure a valid scheme exists to compare two experiments
+        '''
+        availTypes=['ratio','difference']
+        if self.compareVia not in availTypes:
+            raise ValueError("%s is an unsupported manner to compare two experiments - please select from %s"%(self.compareVia,availTypes))
 
     def fromYaml(self,yamlTop):
         self.timeSeries = yamlTop['time series']
@@ -216,10 +202,10 @@ class PlotParams(SharedFuncs):
 
 
 class Stats(SharedFuncs):
-    def __init__(self,flav='Unspecified',confInterval=True):
+    def __init__(self,flav='Unspecified',measures=['mean', 'stdv'],confInterval=True):
         self.flavor=flav
         self.scale, self.units=self.__set__()
-        self.measures=['mean','stdv']
+        self.measures=measures
         self.colors=[c for c in ['b','r','g','k'][:len(self.measures)]]
         self.confidence=confInterval
 
@@ -282,10 +268,6 @@ class GlobalProps(SharedFuncs):
     monthly plot : bool
     time series plot : bool
 
-    <Comparator>
-    monthly : bool
-    type : str (among 'ratio', 'difference', 'trivial')
-
     <experiments>
       <experiment>
         nickname: str
@@ -307,9 +289,8 @@ class GlobalProps(SharedFuncs):
 
     def __init__(self,instruments=NestedDict('instruments',[Instrument()]),
                  experiments=NestedDict('experiments',[Experiment()]),
-                 comparator=Comparator(True),plotParams=PlotParams(),stats=Stats(),**kwargs):
+                 plotParams=PlotParams(),stats=Stats(),**kwargs):
         self.name='global'
-        self.comparator=comparator
         self.experiments=experiments
         self.instruments=instruments
         self.plotParams=plotParams
@@ -318,7 +299,7 @@ class GlobalProps(SharedFuncs):
         self.endDate=kwargs.get('endDate')
         self.obCnt=kwargs.get('obCnt')
         self.obType=kwargs.get('obType')
-        self.supportedStats=kwargs.get('supported stats') if kwargs.get('supported stats') else ['mean', 'stdv', 'sum']
+        self.supportedStats=kwargs.get('supported_stats') if kwargs.get('supported_stats') else ['mean', 'stdv', 'sum']
         self.__parseWildCards__()
 
     def __parseWildCards__(self):

@@ -13,14 +13,17 @@ parser.add_option("-d","--date",type=str,default='YYYYMMDD/YYYYMMDD',
 parser.add_option("-e","--exp",type=str,default='',
                   help='Yaml containing experiment(s) information')
 parser.add_option("-r", "--statsInRegions", type=str, default='REG1/REG2/...',
-                  help='Access statistics for these regions (default = REG1/REG2/...)')
-
+                  help='Geographic regions over which statistics should be viewed (default = REG1/REG2/...)')
+parser.add_option("-s", "--statsToView", type=str, default='mean/stdv',
+                  help='Statistics to view (default = mean/stdv)')
 parser.add_option("--dfs", action='store_true', default=False,
                   help='Create yaml for DFS')
 parser.add_option("--impact", action='store_true', default=False,
                   help='Create yaml for observation impact')
 parser.add_option("--resid", action='store_true', default=False,
                   help='Create yaml for observation residuals')
+parser.add_option("--compVia", type=str, default='ratio',
+                  help='If two experiments are provided, compare them according this scheme (default = ratio)')
 parser.add_option("--tSeriesVar", type=str, default='',
                   help="Specify stat to view time series for - ignored if options.T is False (default = '')")
 parser.add_option('--usrDefRegions',type=str,default='',
@@ -88,7 +91,7 @@ Instruments = NestedDict('configure',[Instrument(i,-10,10) for i in instrList])
 
 # Declare temporal window to investigate
 pandasDates = pd.date_range(start=options.date.split('/')[0],
-                            end=options.date.split('/')[1],freq='D') #'MS')
+                            end=options.date.split('/')[1],freq='D')
 
 # Get the experiments to consider
 # --------------------------------
@@ -100,12 +103,11 @@ with open(options.exp, 'r') as f:
 # Modify plot params
 # -------------------
 plotParams = PlotParams(regions=[r.name for r in regions],timeSeries=options.T,timeSeriesVar=options.tSeriesVar,
-                        monthly=options.M,compVia='ratio')
+                        monthly=options.M,compVia=options.compVia)
 
 
-Global=GlobalProps(instruments=Instruments,comparator=Comparator(True),
-                   experiments=experiments,plotParams=plotParams,
-                   stats=Stats(flav=statsFlavor,confInterval=options.C),
+Global=GlobalProps(instruments=Instruments,experiments=experiments,plotParams=plotParams,
+                   stats=Stats(flav=statsFlavor,measures=list(options.statsToView.split('/')),confInterval=options.C),
                    startDate=pandasDates[0].strftime('%Y-%m-%d'),
                    endDate=pandasDates[-1].strftime('%Y-%m-%d'),
                    obCnt=0,obType='atmsnpp')
