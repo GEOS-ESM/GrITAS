@@ -39,8 +39,7 @@ Options:
 | ---------------- |:-------------:| -----:|
 | DATE   | Time window over which to visualize statistics. | Passed at command line as ```YYYYMMDD/YYYYMMDD``` |
 | EXP | Standalone yaml config collecting names of experiment(s) to consider, nicknames, and absolute paths. | Max of two experiments can be visualized at once. If two experiments are provided, the first is treated as the ***control*** (`cntl`) and the second is deemed ***experiment*** (`exp`). See **Additional Notes** below for further information. |
-| STATSINREGIONS | User-selected regions to consider. | Default regions available: `glo, nhe, she, tro, nam` denoting global, northern hemisphere, southern hemisphere, tropics, north america, respectively. Additional regio\
-ns may be specified via `USRDEFREGIONS`; Delimited via forward slash. |
+| STATSINREGIONS | User-selected regions to consider. | Default regions available: `glo, nhe, she, tro, nam` denoting global, northern hemisphere, southern hemisphere, tropics, north america, respectively. Additional regions may be specified via `USRDEFREGIONS`; Delimited via forward slash. |
 | STATSTOVIEW | View these statistics, regardless of type of plot desired. | Forward-slash delimited; defaults to (sample) mean and (sample) standard deviation (i.e. 'mean'/'stdv').
 | DFS | Produces input yaml specialized for DFS. | - |
 | IMPACT | Produces input yaml specialized for observation impact. | - |
