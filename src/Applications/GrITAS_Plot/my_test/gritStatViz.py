@@ -9,10 +9,10 @@ import yaml
 import optparse
 
 parser = optparse.OptionParser()
-parser.add_option("-i","--impacts",action="store_true",default=False,
-                  help='Visualize impacts')
 parser.add_option("-d","--dfs",action="store_true",default=False,
                   help='Visualize degrees of freedom for instrument')
+parser.add_option("-i","--impacts",action="store_true",default=False,
+                  help='Visualize observation impacts')
 parser.add_option("-r","--residuals",action="store_true",default=False,
                   help='Visualize residuals')
 parser.add_option("-f","--ymlConfig",default='',
