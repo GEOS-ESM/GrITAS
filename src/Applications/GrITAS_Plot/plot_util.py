@@ -112,16 +112,16 @@ class NestedDict:
 # Collect configuration info for different instruments
 #-------------------------------------------------------
 class Instrument(SharedFuncs):
-    def __init__(self,name='Unspecified',_min=0,_max=0,vertUnits='index'):
+    def __init__(self,name='Unspecified',_min=0.0,_max=0.0,vertUnits='index'):
         self.name=name
         self._min=_min
         self._max=_max
         self.vertUnits=vertUnits
 
     def __repr__(self):
-        return 'Instrument instance "%s":\n\t (min,max) = (%i,%i)\t vertUnits = %s\n'%(self.name,
-                                                                                       self._min,self._max,
-                                                                                       self.vertUnits)
+        return 'Instrument instance "%s":\n\t (min,max) = (%.2f,%.2f)\t vertUnits = %s\n'%(self.name,
+                                                                                           self._min,self._max,
+                                                                                           self.vertUnits)
     def serialize(self,yam):
         yam.writeObj({self.name: self.toYaml()})
 
