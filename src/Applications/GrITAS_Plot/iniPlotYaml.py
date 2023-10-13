@@ -3,7 +3,9 @@ import yaml
 import common
 import sys, optparse
 import pandas as pd
+import defaults
 from plot_util import *
+from optparse import OptionValueError
 
 usage = "Usage: %prog [options] "
 parser = optparse.OptionParser(usage);
@@ -12,8 +14,12 @@ parser.add_option("-d","--date",type=str,default='YYYYMMDD/YYYYMMDD',
                   help='Start/End dates of measurements - delimited via "/" (default = YYYYMMDD/YYYYMMDD)')
 parser.add_option("-e","--exp",type=str,default='',
                   help='Yaml containing experiment(s) information')
-parser.add_option("-r", "--statsInRegions", type=str, default='REG1/REG2/...',
-                  help='Geographic regions over which statistics should be viewed (default = REG1/REG2/...)')
+parser.add_option("-i",type=str,dest='instrument',action="callback",
+                  default='atmsnpp',callback=defaults.avail_instruments,
+                  help='Specify instrument to consider (default = atmsnpp)')
+parser.add_option("-r", type=str, dest='statsInRegions',action="callback",
+                  default='glo', callback=defaults.avail_regions,
+                  help='Geographic regions (delimited via forward slash) over which statistics should be viewed (default = glo)')
 parser.add_option("-s", "--statsToView", type=str, default='mean/stdv',
                   help='Statistics to view (default = mean/stdv)')
 parser.add_option("--dfs", action='store_true', default=False,
@@ -39,7 +45,7 @@ parser.add_option("--T", action='store_true', default=False,
 (options, args) = parser.parse_args()
 
 if int(options.dfs)+int(options.impact)+int(options.resid) != 1:
-    raise ValueError("Must select either dfs, impact, or resid!")
+    raise OptionValueError("Must select either dfs, impact, or resid!")
 
 if options.dfs:
     yamlOut='dfs.yaml'
@@ -55,18 +61,8 @@ else:
 out=open(yamlOut,'w')
 myyam=common.myYML(out)
 
-
-# Some default regions
-#-----------------------------------------------------------------
-defRegions={'glo': {'lon': (-180.0,180.0), 'lat': (-90.0,90.0)},\
-            'nhe': {'lon': (0.0,360.0),    'lat': (20.0,90.0)},\
-            'she': {'lon': (0.0,360.0),    'lat': (-90.0,-20.0)},\
-            'tro': {'lon': (0.0,360.0),    'lat': (-20.0,20.0)},\
-            'nam': {'lon': (-172.0,-52.0), 'lat': (16.0,72.0)}\
-        }
-
-# If user has supplied additional zones of interest, collect those and add to defRegions
-#-----------------------------------------------------------------------------------------
+# If user has supplied additional zones of interest, collect those and add to defaults.regions
+#---------------------------------------------------------------------------------------------
 if options.usrDefRegions:
     with open(options.usrDefRegions) as f:
         for l in f.readlines():
@@ -74,20 +70,18 @@ if options.usrDefRegions:
             # lon/lat are strings - need tuple of floats
             lon=tuple(float(x) for x in lon.split(','))
             lat=tuple(float(x) for x in lat.split(','))
-            defRegions.update({name: {'lon': lon, 'lat': lat}})
+            defaults.regions.update({name: {'lon': lon, 'lat': lat}})
 #-----------------------------------------------------------------------------------------
 
-# Actual collection of regions to be considered - selects from defRegions and includes all in usrDefRegions
-# ----------------------------------------------------------------------------------------------------------
-regions=[Region(k,v['lon'],v['lat']) for k,v in defRegions.items() if k in options.statsInRegions.split('/')]
+# Actual collection of regions to be considered - selects from defaults.regions and includes all in usrDefRegions
+# ---------------------------------------------------------------------------------------------------------------
+regions=[Region(k,v['lon'],v['lat']) for k,v in defaults.regions.items() if k in options.statsInRegions.split('/')]
 
 # Bundle all regions focused on into a super set
 Universe=NestedDict('regions',regions)
 
 # Instantiate instruments
-instrList = ['amsuan15', 'amsuan19', 'atmsnpp']
-Instruments = NestedDict('configure',[Instrument(i,-10,10) for i in instrList])
-
+Instruments = NestedDict('instruments',[defaults.instruments[options.instrument]])
 
 # Declare temporal window to investigate
 pandasDates = pd.date_range(start=options.date.split('/')[0],
@@ -110,7 +104,7 @@ Global=GlobalProps(instruments=Instruments,experiments=experiments,plotParams=pl
                    stats=Stats(flav=statsFlavor,measures=list(options.statsToView.split('/')),confInterval=options.C),
                    startDate=pandasDates[0].strftime('%Y-%m-%d'),
                    endDate=pandasDates[-1].strftime('%Y-%m-%d'),
-                   obCnt=0,obType='atmsnpp')
+                   obCnt=0,obType=options.instrument)
 
 
 SV=StatsViewer(glob=Global,universe=Universe)
