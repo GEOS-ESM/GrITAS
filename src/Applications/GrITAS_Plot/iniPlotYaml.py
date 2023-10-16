@@ -59,6 +59,8 @@ else:
 
 # Output serialization
 out=open(yamlOut,'w')
+print(type(out))
+sys.exit()
 myyam=common.myYML(out)
 
 # If user has supplied additional zones of interest, collect those and add to defaults.regions

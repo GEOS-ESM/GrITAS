@@ -5,17 +5,56 @@ import common
 # Domain of latitude/longitude - nothing but a glorified tuple
 #---------------------------------------------------
 class CoordRange:
+    '''
+    Attributes
+    ----------
+    _min : int
+       Minimum range of coordinate
+
+    _max : int
+       Maximum range of coordinate
+    '''
     def __init__(self,_range):
+        '''
+        Initialize a CoordRange instance
+
+        Parameters
+        ----------
+        _range : tuple
+           Float tuple of form (min,max)
+        '''
         self._min, self._max=_range
 
 # Some global properties
 #--------------------------
 class SharedFuncs:
+    '''
+    Attributes
+    ----------
+    collect :
+
+    name : str
+
+
+    Methods
+    -------
+    yamlStruc(*args)
+    '''
     def __init__(self,name,*args):
+        '''
+        Initialize a SharedFuncs instance
+
+        Parameters...
+        '''
         self.name=name
         self.collect=self.yamlStruc(args)
 
     def yamlStruc(self,*args):
+        '''
+        Parameters
+        ----------
+        *args : 
+        '''
         return {t1:t2 for t1,t2 in args}
 
 
