@@ -59,9 +59,7 @@ else:
 
 # Output serialization
 out=open(yamlOut,'w')
-print(type(out))
-sys.exit()
-myyam=common.myYML(out)
+myyam=common.YML(out)
 
 # If user has supplied additional zones of interest, collect those and add to defaults.regions
 #---------------------------------------------------------------------------------------------
@@ -73,41 +71,42 @@ if options.usrDefRegions:
             lon=tuple(float(x) for x in lon.split(','))
             lat=tuple(float(x) for x in lat.split(','))
             defaults.regions.update({name: {'lon': lon, 'lat': lat}})
-#-----------------------------------------------------------------------------------------
 
 # Actual collection of regions to be considered - selects from defaults.regions and includes all in usrDefRegions
 # ---------------------------------------------------------------------------------------------------------------
 regions=[Region(k,v['lon'],v['lat']) for k,v in defaults.regions.items() if k in options.statsInRegions.split('/')]
 
 # Bundle all regions focused on into a super set
-Universe=NestedDict('regions',regions)
+Universe=Collection('regions',regions)
 
 # Instantiate instruments
-Instruments = NestedDict('instruments',[defaults.instruments[options.instrument]])
+Instruments = Collection('instruments',[defaults.instruments[options.instrument]])
 
 # Declare temporal window to investigate
 pandasDates = pd.date_range(start=options.date.split('/')[0],
                             end=options.date.split('/')[1],freq='D')
 
 # Get the experiments to consider
-# --------------------------------
-experiments = NestedDict('experiments');
+# -------------------------------
+experiments = Collection('experiments');
 with open(options.exp, 'r') as f:
     expYaml = yaml.load(f, Loader=yaml.FullLoader)
     experiments.fromYaml(expYaml['experiments'],cls='EXPERIMENT')
 
 # Modify plot params
-# -------------------
+# ------------------
 plotParams = PlotParams(regions=[r.name for r in regions],timeSeries=options.T,timeSeriesVar=options.tSeriesVar,
                         monthly=options.M,compVia=options.compVia)
 
-
+# Construct a GlobalProps instance
+# --------------------------------
 Global=GlobalProps(instruments=Instruments,experiments=experiments,plotParams=plotParams,
                    stats=Stats(flav=statsFlavor,measures=list(options.statsToView.split('/')),confInterval=options.C),
                    startDate=pandasDates[0].strftime('%Y-%m-%d'),
                    endDate=pandasDates[-1].strftime('%Y-%m-%d'),
                    obCnt=0,obType=options.instrument)
 
-
+# Construct a StatsViewer instance from a GlobalProps and Collection (Universe) instance
+# --------------------------------------------------------------------------------------
 SV=StatsViewer(glob=Global,universe=Universe)
-SV.serialize(myyam,out)
+SV.serialize(myyam)

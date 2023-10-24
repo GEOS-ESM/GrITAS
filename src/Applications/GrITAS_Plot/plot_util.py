@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 
 import common
+from abc import ABC, abstractmethod
 
-# Domain of latitude/longitude - nothing but a glorified tuple
-#---------------------------------------------------
 class CoordRange:
     '''
+    Domain of latitude or longitude - nothing but a glorified tuple
+
     Attributes
     ----------
     _min : int
@@ -16,7 +17,7 @@ class CoordRange:
     '''
     def __init__(self,_range):
         '''
-        Initialize a CoordRange instance
+        Construct a CoordRange instance
 
         Parameters
         ----------
@@ -25,182 +26,530 @@ class CoordRange:
         '''
         self._min, self._max=_range
 
-# Some global properties
-#--------------------------
-class SharedFuncs:
+class Serializer(ABC):
     '''
+    Manage serialization of all subclasses
+
     Attributes
     ----------
-    collect :
-
     name : str
+       Key associated with a subclass' properties (held in dictionary)
 
+    toYaml : dict
+       Properties of a subclass
 
     Methods
     -------
-    yamlStruc(*args)
+    serialize(yam)
+       Produces dictionary of form { name: toYaml } and writes to yaml output, if yam is a valid output file, otherwise return to caller.
+
+    fromYaml(self)
+      Set class attributes from read-in yaml. Given @abstractmethod decorator, forcing subclasses to implement.
     '''
     def __init__(self,name,*args):
         '''
-        Initialize a SharedFuncs instance
+        Initialize a Serializer instance
 
-        Parameters...
-        '''
-        self.name=name
-        self.collect=self.yamlStruc(args)
-
-    def yamlStruc(self,*args):
-        '''
         Parameters
         ----------
-        *args : 
+        name : str
+           Key associated with a subclass' properties (held in dictionary)
+
+        *args : tuple(s) as (str,value)
+           Tuples collecting subclass' attributes and values
         '''
-        return {t1:t2 for t1,t2 in args}
-
-
-# A single region to be focused on
-#---------------------------------------------------
-class Region(SharedFuncs):
-    def __init__(self,name='globe',lonRange=(0.0,360.0),latRange=(-90.0,90.0)):
         self.name=name
+        self.toYaml={t1:t2 for t1,t2 in args}
+
+    def serialize(self,yam=None):
+        '''
+        Serialize class attributes into yaml-formatted output
+
+        Produces dictionary of form { name: toYaml } and writes to yaml output, if yam is a valid output file, otherwise return to caller.
+
+        Parameters
+        ----------
+        yam : common.YML instance
+           Yaml serializer for class attributes
+
+        Returns
+        -------
+        None if yam is defined, otherwise dict
+        '''
+        _d={self.name: self.toYaml}
+        if yam:
+            yam.writeObj(_d)
+        else:
+            return _d
+
+    @abstractmethod
+    def fromYaml(self):
+        pass
+
+class Region(Serializer):
+    '''
+    A geographic region denoted by name and coordinates
+
+    Attributes
+    ----------
+    longitude : CoordRange instance
+       Longitude range of region
+
+    latitude : CoordRange instance
+       Latitude range of region
+
+    name : str
+       Name given to geographic region
+
+    toYaml : dict
+       <Inherited from plot_util.Serializer>
+
+    Methods
+    -------
+    fromYaml(self,yamlTop,**kwargs)
+       Sets Region attributes from yamlTop level in an open yaml input file.
+    '''
+    def __init__(self,name='globe',lonRange=(0.0,360.0),latRange=(-90.0,90.0)):
+        '''
+        Initialize a Region instance
+
+        Parameters
+        ----------
+        name : str
+           Name given to geographic region
+
+        lonRange : tuple (float)
+           Longitude range of region
+
+        latRange : tuple (float)
+           Latitude range of region
+        '''
         self.longitude = CoordRange(lonRange)
         self.latitude = CoordRange(latRange)
+        Serializer.__init__(self,name,('lona',self.longitude._min),('lonb',self.longitude._max),
+                            ('lata',self.latitude._min),('latb',self.latitude._max))
 
     def __pretty_lat__(self,l):
+        '''
+        Latitude in degrees North/South
+
+        Returns
+        -------
+        str
+        '''
         if l < 0:   return '%.1fS'%abs(l)
         elif l > 0: return '%.1fN'%abs(l)
         else:       return '0'
 
     def __pretty_lon__(self,l):
+        '''
+        Longitude in degrees East/West
+
+        Returns
+        -------
+        str
+        '''
         if l < 0:   return '%.1fW'%abs(l)
         elif l > 0: return '%.1fE'%abs(l)
         else:       return '0'
 
     def __repr__(self):
-        return '%s - %s\n%s - %s'%(self.__pretty_lat__(self.latitude._min),self.__pretty_lat__(self.latitude._max),\
-                                   self.__pretty_lon__(self.longitude._min),self.__pretty_lon__(self.longitude._max))
+        '''
+        String representation of Region
 
-    def serialize(self,yam):
-        yam.writeObj({self.name: self.toYaml})
-
-    def toYaml(self):
-        return self.yamlStruc(('lona',self.longitude._min),('lonb',self.longitude._max),
-                              ('lata',self.latitude._min),('latb',self.latitude._max))
+        Returns
+        -------
+        str
+        '''
+        return '%s\n%s - %s\n%s - %s'%(self.name,self.__pretty_lat__(self.latitude._min),
+                                       self.__pretty_lat__(self.latitude._max),
+                                       self.__pretty_lon__(self.longitude._min),
+                                       self.__pretty_lon__(self.longitude._max))
 
     def fromYaml(self,yamlTop,**kwargs):
-        self.name=kwargs['name']
+        '''
+        Sets Region attributes from yamlTop level in an open yaml input file.
+
+        Parameters
+        ----------
+        yamlTop : str
+           Parse input yaml at level defined by key yamlTop.
+
+        **kwargs
+
+        Returns
+        -------
+        self
+        '''
         self.longitude = CoordRange((yamlTop['lona'],yamlTop['lonb']))
         self.latitude = CoordRange((yamlTop['lata'],yamlTop['latb']))
+        Serializer.__init__(self,kwargs['name'],('lona',self.longitude._min),('lonb',self.longitude._max),
+                            ('lata',self.latitude._min),('latb',self.latitude._max))
         return self
 
-
-# Map a key to a dict of items
-#---------------------------------------------------
-class NestedDict:
+class Collection:
     '''
-    Maps a key to list of class instances
+    Associate a list of homogeneous class instances to a key
 
-    Serializable to yaml
+    Attributes
+    ----------
+    key : str
+       Identifier of class instances list
+
+    members : list
+       Homogeneous collection of classes
+
+    Methods
+    -------
+    append(self,m)
+       Append a class instance to members list
+
+    fromYaml(self,yamlTop,cls)
+       Read class instances from yaml defined by yamlTop.keys()
+
+    serialize(self,yam=None)
+       Serialize each class instance in members list
+
+    size(self)
+       Number of class instances held in Collection
     '''
     def __init__(self,key,members=[]):
+        '''
+        Initialize a Collection instance
+
+        Parameters
+        ----------
+        key : str
+           Indentifier of class instances list
+
+        members : list
+           Classes to hold in Collection
+        '''
         self.key = key
         self.members = members
 
     def __repr__(self):
-        s ='NestedDict instance "%s" with members:\n'%self.key
+        '''
+        String representation of Collection
+
+        Returns
+        -------
+        str
+        '''
+        s ='Collection instance "%s" with members:\n'%self.key
         try:
             for m in self.members: s += m.__repr__()
         except:
             s += ''
         return s
 
+    def __iter__(self):
+        '''
+        Return iterator over Collections.members
+
+        Returns
+        -------
+        List iterator
+        '''
+        return iter(self.members)
+
     def __getitem__(self,key):
+        '''
+        Access class whose name attribute matches key. Class is returned if match is found, otherwise KeyError
+
+        Parameters
+        ----------
+        key : str
+           Name of desired class member
+
+        Returns
+        -------
+        Class, if class name matches key
+
+        Raises
+        ------
+        KeyError : class name not found among Collection members
+        '''
         for m in self.members:
-            if m.name == key: return m
-        raise KeyError('Region "%s" is not a member of Universe regions'%key)
+            if m.name == key:
+                return m
+        raise KeyError('Member %s not found among Collection members'%m)
 
-    def size(self):
-        return len(self.members)
+    def append(self,m):
+        '''
+        Append a class instance to members list
 
-    def toYaml(self):
-        return {mem.name:mem.toYaml() for mem in self.members}
+        Parameters
+        ----------
+        m : instance
+           Class instance to append to Collection.members
+
+        Returns
+        -------
+        None
+        '''
+        self.members.append(m)
 
     def fromYaml(self,yamlTop,cls):
-        # If reading from yaml, clear contents of members to flush default class instances
-        # del self.members[:]
+        '''
+        Read class instances from yaml defined by yamlTop.keys()
+
+        Parameters
+        ----------
+        yamlTop : str
+           Parse input yaml at level defined by key yamlTop
+
+        cls : str
+           Class instance type used to direct how members are read from yaml
+
+        Returns
+        -------
+        None
+        '''
+        # If reading from yaml, clear members contents to flush default class instances
         self.members=[]
 
         for k in yamlTop.keys():
-            if cls=='INSTRUMENT':
+            if cls.upper()=='INSTRUMENT':
                 self.append( Instrument().fromYaml(yamlTop[k],name=k) )
-            elif cls=='EXPERIMENT':
+            elif cls.upper()=='EXPERIMENT':
                 self.append( Experiment().fromYaml(yamlTop[k],name=k) )
             else:
                 self.append( Region().fromYaml(yamlTop[k],name=k) )
 
-    # Serialize
-    def serialize(self,yam):
-        yam.writeObj({self.key: self.toYaml() })
+    def serialize(self,yam=None):
+        '''
+        Serialize each class instance in members list
 
-    # Append new members
-    def append(self,m):
-        self.members.append(m)
-        # self.toYaml.update({m.name:m.toYaml})
+        Parameters
+        ----------
+        yam : common.YML instance
+           Yaml serializer for class attributes
+
+        Returns
+        -------
+        None if yam is defined, otherwise dict
+        '''
+        _tmp={}
+        for mem in self.members:
+            _tmp.update(mem.serialize())
+        if yam:
+            yam.writeObj({self.key: _tmp})
+        else:
+            return {self.key: _tmp}
+
+    def size(self):
+        '''
+        Number of class instances held in Collection
+
+        Returns
+        -------
+        int
+        '''
+        return len(self.members)
 
 
-# Collect configuration info for different instruments
-#-------------------------------------------------------
-class Instrument(SharedFuncs):
+class Instrument(Serializer):
+    '''
+    Configuration info for an instrument
+
+    Attributes
+    ----------
+    _min : float
+       Plot range minimum for instrument
+
+    _max : float
+       Plot range maximum for instrument
+
+    name : str
+       Name given to instrument
+
+    vertUnits : str
+       Vertical axis label units
+
+    Methods
+    -------
+    fromYaml(self,yamlTop,**kwargs)
+       Sets Instrument attributes from yamlTop level in an open yaml input file
+    '''
     def __init__(self,name='Unspecified',_min=0.0,_max=0.0,vertUnits='index'):
-        self.name=name
+        '''
+        Initialize an Instrument instance
+
+        Parameters
+        ----------
+        name : str
+           Name given to instrument
+
+        _min : float
+           Plot range minimum for instrument
+
+        _max : float
+           Plot range maximum for instrument
+
+        vertUnits : str
+           Vertical axis label units (defaults to 'index' - e.g., channel index)
+        '''
         self._min=_min
         self._max=_max
         self.vertUnits=vertUnits
+        Serializer.__init__(self,name,('vertical units',str(self.vertUnits)),
+                            ('min value', self._min),('max value', self._max))
 
     def __repr__(self):
-        return 'Instrument instance "%s":\n\t (min,max) = (%.2f,%.2f)\t vertUnits = %s\n'%(self.name,
-                                                                                           self._min,self._max,
-                                                                                           self.vertUnits)
-    def serialize(self,yam):
-        yam.writeObj({self.name: self.toYaml()})
+        '''
+        String representation of Instrument
 
-    def toYaml(self):
-        return self.yamlStruc(('vertical units',str(self.vertUnits)),
-                              ('min value', self._min),
-                              ('max value', self._max))
+        Returns
+        -------
+        str
+        '''
+        return '   %s:\n\t range: (%s,%s)\n\t vert. units: %s'%(self.name,self._min,self._max,self.vertUnits)
 
     def fromYaml(self,yamlTop,**kwargs):
-        self.name=kwargs['name']
+        '''
+        Sets Instrument attributes from yamlTop level in an open yaml input file
+
+        Parameters
+        ----------
+        yamlTop : str
+           Parse input yaml at level defined by key yamlTop.
+
+        **kwargs
+
+        Returns
+        -------
+        self
+        '''
         self._min=yamlTop['min value']
         self._max=yamlTop['max value']
         self.vertUnits=yamlTop['vertical units']
+        Serializer.__init__(self,kwargs['name'],('vertical units',str(self.vertUnits)),
+                            ('min value', self._min),('max value', self._max))
         return self
 
-# An experiment class [NB: Experiment & Instrument classes are functionally the same! Consider a factory?!]
-class Experiment(SharedFuncs):
+class Experiment(Serializer):
+    '''
+    Experiment information
+
+    Attributes
+    ----------
+    name : str
+       Name given to experiment
+
+    nickname : str
+       Shorthand assigned to experiment
+
+    pathToFile : str
+       Absolute path of experiment netCDF file
+
+    Methods
+    -------
+    fromYaml(self,yamlTop,**kwargs)
+       Sets Experiment attributes from yamlTop level in an open yaml input file
+    '''
     def __init__(self,name='Unspecified',nickname='Unspecified',pathToFile='./'):
-        self.name=name
+        '''
+        Initialize an Experiment instance
+
+        Parameters
+        ----------
+        name : str
+           Name given to experiment
+
+        nickname : str
+           Shorthand assigned to experiment
+
+        pathToFile : str
+           Absolute path of experiment netCDF file
+        '''
         self.nickname=nickname
         self.pathToFile=pathToFile
+        Serializer.__init__(self,name,('nickname',self.nickname),('file name', self.pathToFile))
 
     def __repr__(self):
+        '''
+        String representation of Experiment
+
+        Returns
+        -------
+        str
+        '''
         return 'Experiment instance "%s":\n\t nicknamed = %s\n\t path = %s\n'%(self.name,self.nickname,self.pathToFile)
 
-    def serialize(self,yam):
-        yam.writeObj({self.name: self.toYaml()})
-
-    def toYaml(self):
-        return self.yamlStruc(('nickname',self.nickname),
-                              ('file name', self.pathToFile))
-
     def fromYaml(self,yamlTop,**kwargs):
-        self.name=kwargs['name']
+        '''
+        Sets Experiment attributes from yamlTop level in an open yaml input file
+
+        Parameters
+        ----------
+        yamlTop : str
+           Parse input yaml at level defined by key yamlTop.
+
+        **kwargs
+
+        Returns
+        -------
+        self
+        '''
         self.nickname=yamlTop['nickname']
         self.pathToFile=yamlTop['file name']
+        Serializer.__init__(self,kwargs['name'],('nickname',self.nickname),('file name', self.pathToFile))
         return self
 
-class PlotParams(SharedFuncs):
+class PlotParams(Serializer):
+    '''
+    Parameters dictating type of plot to produce, and its properties
+
+    Attributes
+    ----------
+    regions : list
+       List of strings denoting geographic regions within which time-averaged statistics should be plotted
+
+    timeSeries : bool
+       Produce a time series plot
+
+    timeSeriesVar : str
+       Produce a time series of variable
+
+    monthly : bool
+       Produce a monthly plot
+
+    compareVia : str
+       When two experiments are considered, compare them according to scheme
+
+    simpleBars : bool
+       Embelished confidence intervals
+
+    form : str
+       Format of saved figures
+
+    Methods
+    -------
+    fromYaml(self,yamlTop)
+       Sets PlotParams attributes from yamlTop level in an open yaml input file
+    '''
     def __init__(self,regions=[],timeSeries=False,timeSeriesVar='',monthly=True,compVia='ratio'):
+        '''
+        Initialize a PlotParams instance
+
+        Parameters
+        ----------
+        regions : list
+           List of strings denoting geographic regions within which time-average statistics should be plotted
+
+        timeSeries : bool
+           Produce a time series plot
+
+        timeSeriesVar : str
+           Produce a time series of variable (accepted: mean, stdv, sum)
+
+        monthly : bool
+           Produce a monthly plot
+
+        compVia : str
+           When two experiments are considered, compare according to scheme (supported: 'ratio' and 'difference')
+        '''
         self.regions=regions
         self.timeSeries=timeSeries
         self.timeSeriesVar=timeSeriesVar
@@ -208,17 +557,45 @@ class PlotParams(SharedFuncs):
         self.compareVia=compVia
         self.simpleBars=True
         self.form='png'
+        Serializer.__init__(self,'plot params',
+                            ('time series', self.timeSeries),
+                            ('time series var', self.timeSeriesVar),
+                            ('monthly', self.monthly),
+                            ('simple bars', self.simpleBars),
+                            ('compare via', self.compareVia),
+                            ('regions', self.regions),
+                            ('format', self.form))
         self.__valid__()
 
     def __valid__(self):
         '''
-        Ensure a valid scheme exists to compare two experiments
+        Ensure compareVia scheme is valid/supported
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        ValueError : compareVia is neither 'ratio' nor 'difference'
         '''
-        availTypes=['ratio','difference']
-        if self.compareVia not in availTypes:
-            raise ValueError("%s is an unsupported manner to compare two experiments - please select from %s"%(self.compareVia,availTypes))
+        if self.compareVia not in ['ratio','difference']:
+            raise ValueError("%s is an unsupported manner to compare two experiments - please select from %s"%
+                             (self.compareVia,['ratio','difference']))
 
     def fromYaml(self,yamlTop):
+        '''
+        Sets PlotParams attributes from yamlTop level in an open yaml input file
+
+        Parameters
+        ----------
+        yamlTop : str
+           Parse input yaml at level defined by key yamlTop.
+
+        Returns
+        -------
+        None
+        '''
         self.timeSeries = yamlTop['time series']
         self.timeSeriesVar = yamlTop['time series var']
         self.monthly = yamlTop['monthly']
@@ -226,109 +603,181 @@ class PlotParams(SharedFuncs):
         self.compareVia = yamlTop['compare via']
         self.regions = yamlTop['regions']
         self.form = yamlTop['format']
+        Serializer.__init__(self,'plot params',
+                            ('time series', self.timeSeries),
+                            ('time series var', self.timeSeriesVar),
+                            ('monthly', self.monthly),
+                            ('simple bars', self.simpleBars),
+                            ('compare via', self.compareVia),
+                            ('regions', self.regions),
+                            ('format', self.form))
+        self.__valid__()
 
-    def toYaml(self):
-        return self.yamlStruc(('time series', self.timeSeries),
-                              ('time series var', self.timeSeriesVar),
-                              ('monthly', self.monthly),
-                              ('simple bars', self.simpleBars),
-                              ('compare via', self.compareVia),
-                              ('regions', self.regions),
-                              ('format', self.form))
+class Stats(Serializer):
+    '''
+    Provide control over statistics
 
-    def serialize(self,yam):
-        yam.writeObj(self.toYaml)
+    Attributes
+    ----------
+    flavor : str
+       Flavor of statistics
 
+    scale : float
+       Multiplicatively rescale statistics by scale
 
-class Stats(SharedFuncs):
+    units : str
+       Units of statistics (used to label horizontal axes of plots)
+
+    measures : list
+       Time-averaged statistics to access from netCDF
+
+    colors : list
+       Colors assigned to measures
+
+    confidence : bool
+       Include confidence intervals on plots
+
+    Methods
+    -------
+    fromYaml(self,yamlTop)
+       Sets Stats attributes from yamlTop level in an open yaml input file
+    '''
     def __init__(self,flav='Unspecified',measures=['mean', 'stdv'],confInterval=True):
+        '''
+        Initialize a Stats instance
+
+        Parameters
+        ----------
+        flav : str
+           Flavor of statistics - supported 'Standard Deviation' (residuals), 'DFS per Ob' (DFS), 'Ob count' (obs impact)
+
+        measures : list
+           Time-averaged statistics to access from netCDF (among: 'mean', 'stdv', 'sum')
+
+        confInterval : bool
+           Include confidence intervals on plots
+        '''
         self.flavor=flav
         self.scale, self.units=self.__set__()
         self.measures=measures
         self.colors=[c for c in ['b','r','g','k'][:len(self.measures)]]
         self.confidence=confInterval
+        Serializer.__init__(self,'statistics',
+                            ('flavor',self.flavor),('scale',self.scale),('units',self.units),
+                            ('measures',self.measures),('colors', self.colors),('confidence', self.confidence))
 
     def __set__(self):
-        if self.flavor   == 'Unspecified': return -1,-1
-        if self.flavor   == 'Standard Deviation': return 1.0,'%'
+        '''
+        Set self.scale and self.units based on self.flavor
+
+        Returns
+        -------
+        str
+
+        Raises
+        ------
+        ValueError : Unsupported statistics flavor specified
+        '''
+        if self.flavor == 'Unspecified': return -1,'-1'
+        elif self.flavor == 'Standard Deviation': return 1.0,'%'
         elif self.flavor == 'DFS per Ob':         return 1e4,'1'
         elif self.flavor == 'Ob count':           return 1.0,'1'
         else:
             raise ValueError("Unsupported Stats Flavor = %s\n- Supported Flavors: %s, %s, %s"
                              %(self.flavor,'Standard Deviation','DFS per Ob','Ob count'))
 
-    def toYaml(self):
-        return self.yamlStruc(('flavor',     self.flavor),
-                              ('scale',      self.scale),
-                              ('units',      self.units),
-                              ('measures',   self.measures),
-                              ('colors',     self.colors),
-                              ('confidence', self.confidence))
-
     def fromYaml(self,yamlTop):
+        '''
+        Sets Stats attributes from yamlTop level in an open yaml input file
+
+        Parameters
+        ----------
+        yamlTop : str
+           Parse input yaml at level defined by key yamlTop
+
+        Returns
+        -------
+        None
+        '''
         self.flavor     = yamlTop['flavor']
         self.scale      = yamlTop['scale']
         self.units      = yamlTop['units']
         self.measures   = yamlTop['measures']
         self.colors     = yamlTop['colors']
         self.confidence = yamlTop['confidence']
+        Serializer.__init__(self,'statistics',
+                            ('flavor',self.flavor),('scale',self.scale),('units',self.units),
+                            ('measures',self.measures),('colors', self.colors),('confidence', self.confidence))
 
-    def serialize(self,yam):
-        yam.writeObj(self.toYaml)
-
-# Global properties
-#------------------------------------------
-class GlobalProps(SharedFuncs):
+class GlobalProps(Serializer):
     '''
-    Will incorporate the following structures
+    Global properties of yaml (once produced) that drives plotting; assembled from Collections of instruments and experiment(s), PlotParams, Stats, and several keyword arguments.
 
-    <  GLOBAL  >
-    start date : str
-    end date : str
+    Attributes
+    ----------
+    name : str
+       Name given to instance (defaults to 'global')
 
-    supported stats: list
+    experiments : plot_util.Collection instance
+       Experiment(s) targeted in plotting
 
-    nicknames : list
-    experiment identifier : list
-    file name : str
-    ob count threshold for statistics : int
-    obtype : str
-    regions : list
-    figure type : str (png default)
+    instruments : plot_util.Collection instance
+       Instrument configuration
 
-    \/<Stats>
-    \/statistics flavor : str
-    \/scale : float
-    \/units : str
-    \/statistics : list (e.g. ['mean','stdv'])
-    \/colors : list (e.g. ['b','r','g'] )
-    \/confidence : bool
+    plotParams : plot_util.PlotParams instance
+       Properties configuring plotting
 
-    monthly plot : bool
-    time series plot : bool
+    stats : plot_util.Stats instance
+       Properties configuring statistics
 
-    <experiments>
-      <experiment>
-        nickname: str
-        file name: str
+    startDate : str
+       Start date of time-averaged statistics
 
-    <Instruments>
-      <Instrument>
-      vertical units : str
-      min value : float
-      max value : float
+    endDate : str
+       End date of time-averaged statistics
 
-    <  REGION  >
-    (regions)
-    lona : float
-    lonb : float
-    lata : float
-    latb : float
+    obCnt : int
+       Observation count threshold for presenting statistics
+
+    obType : str
+       Instrument to consider in experiment(s)
+
+    supportedStats : list
+       Raw time-averaged statistics present in GrITAS-produced netCDF file. Defaults to ['mean', 'stdv', 'sum'], but may be overwritten by user.
+
+    Methods
+    -------
+    fromYaml(self,yamlTop,**kwargs)
+       Sets GlobalProps attributes from yamlTop level in an open yaml input file
+
+    serialize(self,yam)
+       Serialize GlobalProps instance
+
+       Overrides Serializer.serialize
     '''
-
-    def __init__(self,instruments=NestedDict('instruments',[Instrument()]),
-                 experiments=NestedDict('experiments',[Experiment()]),
+    def __init__(self,instruments=Collection('instruments',[Instrument()]),
+                 experiments=Collection('experiments',[Experiment()]),
                  plotParams=PlotParams(),stats=Stats(),**kwargs):
+        '''
+        Initialize GlobalProps instance
+
+        Parameters
+        ----------
+        instruments : plot_util.Collection instance
+           Instrument configuration
+
+        experiments : plot_util.Collection instance
+           Experiment(s) targeted in plotting
+
+        plotParams : plot_util.PlotParams instance
+           Properties configuring plotting
+
+        stats : plot_util.Stats instance
+           Properties configuring statistics
+
+        **kwargs
+           Used to set startDate, endDate, obCnt, obType, supportedStats
+        '''
         self.name='global'
         self.experiments=experiments
         self.instruments=instruments
@@ -339,63 +788,105 @@ class GlobalProps(SharedFuncs):
         self.obCnt=kwargs.get('obCnt')
         self.obType=kwargs.get('obType')
         self.supportedStats=kwargs.get('supported_stats') if kwargs.get('supported_stats') else ['mean', 'stdv', 'sum']
-        self.__parseWildCards__()
-
-    def __parseWildCards__(self):
-        try:
-            self.fileName=self.fileName.replace("$STRDATE",self.startDate.replace('-',''))
-            self.fileName=self.fileName.replace("$ENDDATE",self.endDate.replace('-',''))
-            self.fileName=[self.fileName.replace("$TMPNAME",n).replace("$EXPID",e)\
-                           for n in self.nicknames for e in self.expID]
-        except:
-            pass
-
-
+        Serializer.__init__(self,self.name,
+                            ('start date', self.startDate),
+                            ('end date', self.endDate),
+                            ('supported stats', self.supportedStats),
+                            ('ob count threshold for statistics', self.obCnt),
+                            ('obtype', self.obType))
 
     def fromYaml(self,yamlTop,**kwargs):
+        '''
+        Sets GlobalProps attributes from yamlTop level in an open yaml input file
+
+        Parameters
+        ----------
+        yamlTop : str
+           Parse input yaml at level defined by key yamlTop.
+
+        **kwargs
+
+        Returns
+        -------
+        None
+        '''
         self.startDate   = yamlTop['start date']
         self.endDate     = yamlTop['end date']
-
         self.supportedStats = yamlTop['supported stats']
-
         self.obCnt       = yamlTop['ob count threshold for statistics']
         self.obType      = yamlTop['obtype']
-
-
         self.stats.fromYaml(yamlTop['statistics'])
         self.experiments.fromYaml(yamlTop['experiments'],cls='EXPERIMENT')
         self.instruments.fromYaml(yamlTop['instruments'],cls='INSTRUMENT')
         self.plotParams.fromYaml(yamlTop['plot params'])
-
-        self.__parseWildCards__()
-
+        Serializer.__init__(self,self.name,
+                            ('start date', self.startDate),
+                            ('end date', self.endDate),
+                            ('supported stats', self.supportedStats),
+                            ('ob count threshold for statistics', self.obCnt),
+                            ('obtype', self.obType))
 
     def serialize(self,yam):
-        toYaml = self.yamlStruc(('start date',                       self.startDate),
-                                ('end date',                         self.endDate),
-                                ('supported stats',                  self.supportedStats),
-                                ('ob count threshold for statistics', self.obCnt),
-                                ('obtype',                           self.obType))
+        '''
+        Serializing each component of GlobalProps instance: experiments, plotParams, stats, instruments, and keyword arguments.
 
-        toYaml.update({'experiments': self.experiments.toYaml()})
-        toYaml.update({'plot params': self.plotParams.toYaml()})
-        toYaml.update({'statistics': self.stats.toYaml()})
-        toYaml.update({'instruments': self.instruments.toYaml()})
+        Overrides Serializer.serialize
 
-        yam.writeObj({self.name: toYaml})
+        Parameters
+        ----------
+        yam : common.YML instance
+           Yaml serializer for class attributes
 
+        Returns
+        -------
+        None
+        '''
+        _tmp=self.toYaml
+        _tmp.update(self.experiments.serialize())
+        _tmp.update(self.plotParams.serialize())
+        _tmp.update(self.stats.serialize())
+        _tmp.update(self.instruments.serialize())
+        yam.writeObj({self.name: _tmp})
 
-# Main class for visualizing time averaged statistics from GrITAS
-#-----------------------------------------------------------------
 class StatsViewer:
-    def __init__(self,glob=GlobalProps(),universe=NestedDict('regions',[Region()])):
+    '''
+    Main class for visualizing time-averaged statistics from GrITAS
+
+    Attributes
+    ----------
+    globalProps : GlobalProps instance
+       Properties configuring how time-averaged statistics (via GrITAS) will be viewed
+
+    universe : Collection instance
+       Collection of all geographic regions statistics will be visualized within
+    '''
+    def __init__(self,glob=GlobalProps(),universe=Collection('regions',[Region()])):
+        '''
+        Construct a StatsViewer instance
+
+        Parameters
+        ----------
+        glob : GlobalProps instance
+           Properties configuring how time-averaged statistics (via GrITAS) will be viewed. Defaults to a generic configuration.
+
+        universe : Collection instance
+           Collection of all geographic regions statistics will be visualized within. Defaults to a single region encompassing the entire globe.
+        '''
         self.globalProps=glob
         self.universe=universe
 
-    def serialize(self,yam,out):
+    def serialize(self,yam):
+        '''
+        Serialize StatsViewer attributes into yaml-formatted output
+
+        Parameters
+        ----------
+        yam : common.YML instance
+           Yaml serializer for class attributes
+
+        Returns
+        -------
+        None
+        '''
         self.globalProps.serialize(yam)
         self.universe.serialize(yam)
-
-
-
-

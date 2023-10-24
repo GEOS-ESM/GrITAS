@@ -23,7 +23,7 @@ regions={'glo': {'lon': (-180.0,180.0), 'lat': (-90.0,90.0)},
 
 def avail_regions(option, opt_str, value, parser):
     '''
-    Method to determine if a provided region specifier is present in default regions dict
+    Callback function to determine if a provided region specifier is present in default regions dict
 
     Parameters
     ----------
@@ -38,6 +38,14 @@ def avail_regions(option, opt_str, value, parser):
 
     value : str
        Argument to option seen on command line
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    OptionValueError : region specifier not found among supported regions dictionary
     '''
     # All stats in regions need to match in order to proceed
     valid=True
@@ -46,6 +54,7 @@ def avail_regions(option, opt_str, value, parser):
             valid=False
             break
 
+    # If all region specifiers are matched, set the OptionParser attribute
     if valid:
         setattr(parser.values, option.dest, value)
     else:
@@ -56,7 +65,7 @@ def avail_regions(option, opt_str, value, parser):
 
 def avail_instruments(option, opt_str, value, parser):
     '''
-    Method to determine if a provided instrument is present in supported instruments dict
+    Callback function to determine if a provided instrument is present in supported instruments dict
 
     Parameters
     ----------
@@ -71,6 +80,14 @@ def avail_instruments(option, opt_str, value, parser):
 
     value : str
        Argument to option seen on command line
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    OptionValueError : instrument not found among supported instruments dictionary
     '''
     if value in instruments:
         setattr(parser.values, option.dest, value)

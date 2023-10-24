@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from helperFns import *
+from figutil import *
 import plot_util
 import common
 import pandas as pd
@@ -29,7 +29,7 @@ if not options.impacts^options.dfs^options.residuals:
 # Init and read classes from yaml
 # ---------------------------------------------------------------------------------------
 Global=plot_util.GlobalProps()
-Regions=plot_util.NestedDict('regions')
+Regions=plot_util.Collection('regions')
 with open(options.ymlConfig, 'r') as f:
     valsYML = yaml.load(f, Loader=yaml.FullLoader)
     Global.fromYaml(valsYML['global'])
@@ -134,8 +134,16 @@ for nr,region in enumerate(SV.globalProps.plotParams.regions):
         meanIdx = np.argmax([s=='mean' for s in SV.globalProps.stats.measures])
         stdvIdx = np.argmax([s=='stdv' for s in SV.globalProps.stats.measures])
 
-        cntlMean = allStats[:,0,nr,meanIdx]
-        cntlStdv = allStats[:,0,nr,stdvIdx]
+        # cntlMean = allStats[:,0,nr,meanIdx]
+        # cntlStdv = allStats[:,0,nr,stdvIdx]
+
+        # Define index along which monthly comparison will be computed
+        if SV.globalProps.plotParams.compareVia == 'ratio':
+            compIdx = stdvIdx
+        elif SV.globalProps.plotParams.compareVia == 'difference':
+            compIdx = meanIdx
+        else:
+            compIdx = 0
 
         # Convenience
         nicknames = [exp.nickname for exp in SV.globalProps.experiments.members]
@@ -146,7 +154,7 @@ for nr,region in enumerate(SV.globalProps.plotParams.regions):
                                      SV.globalProps.plotParams.simpleBars,\
                                      yrs=years,mnths=months)
             gritDict['Exp'].monthlyComp(SV.globalProps.plotParams.compareVia,
-                                        allStats[:,1,nr,stdvIdx],allStats[:,0,nr,stdvIdx],
+                                        allStats[:,1,nr,compIdx],allStats[:,0,nr,compIdx],
                                         stats=SV.globalProps.stats,
                                         instruments=SV.globalProps.instruments,annotation=nicknames)
         else:

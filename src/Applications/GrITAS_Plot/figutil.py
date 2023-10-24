@@ -1,20 +1,32 @@
 #!/usr/bin/env python
 
 import sys
-from pylab import *
+import netCDF4 as nc4
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+from pylab import *
 from datetime import timedelta
 
-import netCDF4 as nc4
-
-
 # Global settings for matplotlib
+# ------------------------------
 mpl.rc('font', family='serif')
-# mpl.rc('text', usetex=True)
-# mpl.rcParams.update(mpl.rcParamsDefault)
 
 def revMaskedArray(arr,action):
+    '''
+    Reverse an array
+
+    Parameters
+    ----------
+    arr : numpy.ndarray
+       Array of data
+
+    action : bool
+       Whether reversal should be performed
+
+    Returns
+    -------
+    arr, class range
+    '''
     if action:
         idx = range(len(arr)-1,-1,-1)
         return arr[idx], idx
@@ -24,14 +36,84 @@ def revMaskedArray(arr,action):
 
 def lvlAvg(arr,mask):
     '''
-    Return sum(arr)/dim(arr) where elements of arr included in sum and dim are those identified by mask
-    -> shape(mask)[1] equates to number of lat x lon points for which elements of arr meet mask criterion
+    Compute average of an array, neglecting elements based on a mask
+
+    Parameters
+    ----------
+    arr : numpy.ndarray
+
+    mask : numpy.ndarray
+
+    Returns
+    -------
+    float
     '''
+    # Access first element of shape(mask) for number lat,lon points for which elements of arr meet mask criterion
     return arr[mask].sum()/shape(mask)[1]
 
+class GritasFig:
+    '''
+    Manages construction of figure(s) to visualize gridded time-averaged statistics
 
-class gritasFig:
+    Attributes
+    ----------
+    prefix : str
+       Prefix of figure to be saved
+
+    obType : str
+       Instrument belonging to experiment(s)
+
+    region : plot_util.Region instance
+       A geographic region figure will correspond to
+
+    scale : float
+       Rescale statistics
+
+    simpleBars : bool
+       Embelished confidence intervals
+
+    typ : str
+       Shorthand for type of figure that will be produced (e.g., 'monthly' or 'tseries')
+
+    figType : str
+       Figure format
+
+    yrs : list
+       List of years in time window
+
+    mnths : list
+       List of months in time window
+
+    yyyymm : str
+       Time window as a string, formatted as YYYYMM-YYYYMM
+    '''
     def __init__(self,prefix,obType,region,scale,simpleBars,yrs=None,mnths=None):
+        '''
+        Intialize a GritasFig instance
+
+        Parameters
+        ----------
+        prefix : str
+           Prefix of figure to be saved
+
+        obType : str
+           Instrument belonging to experiment(s)
+
+        region : plot_util.Region instance
+           A geographic region figure will correspond to
+
+        scale : float
+           Rescale statistics
+
+        simpleBars : bool
+           Embelished confidence intervals
+
+        yrs : list
+           List of years in time window
+
+        mnths : list
+           List of months in time window
+        '''
         self.prefix=''.join(prefix) if isinstance(prefix, str) else 'X'.join(prefix)
         self.obType=obType
         self.region=region
@@ -45,10 +127,30 @@ class gritasFig:
         if len(self.yrs) > 1 or len(self.mnths) > 1:
             self.yyyymm += '-%s%s'%(self.yrs[-1],str(self.mnths[-1]).rjust(2,'0'))
 
-    def monthlyStat(self,allStats,stats=None,instruments=[],flavor='None',annotation=None):
-        self.typ='monthly'
-        self.commonFigSetup(allStats,stats.units,instruments,flavor=flavor)
+    def monthlyStat(self,allStats,stats=None,instruments=[],annotation=None):
+        '''
+        Produce a monthly plot of statistic
 
+        Parameters
+        ----------
+        allStats : numpy.ndarray
+           Statistics per level, experiment, region, and stat
+
+        stats : plot_util.Stats instance
+           Configure statistics
+
+        instruments : plot_util.Collection instance
+           Configure instruments
+
+        annotation : list
+           List of strings of annotations (used to label 'CTL' and 'EXP' on figure)
+
+        Returns
+        -------
+        None
+        '''
+        self.typ='monthly'
+        self.commonFigSetup(allStats,stats.units,instruments)
 
         # Iterate over all supported stats, skipping if not desired
         for ns, stat in enumerate(self.supportedStats):
@@ -59,40 +161,12 @@ class gritasFig:
             # Set center of bars
             barCenter = arange(len(statAllLvls))-1.0/5+ns*self.bar_width
 
+            # Set properties of errorbars
             kwargs={'alpha': self.opacity,'color': stats.colors[ns],'label': stat,'error_kw': self.error_config}
+
             # Confidence on monthlyStat
             # --------------------------
             if stats.confidence:
-                '''
-                Confidence level assigned to mean:
-                    <sample variance> * <test statistic>/sqrt(<# observations - i.e. sample size!>
-                The measurements form a random sample {x1,x2,...,xn} drawn from (assumed) a normal distribution
-                with (pop.) mean \mu and (pop.) variance \sigma^2. As the population mean and variance of the
-                underlying distribution are unknown, we must use a t-score (via t-distribution) to assign a
-                (1-\alpha) confidence level for the computed SAMPLE MEAN.
-                   CL = [ xbar - t(\alpha/2|n-1)*(s/\sqrt(n)), xbar + t(\alpha/2|n-1)*(s/\sqrt(n)) ]
-
-                where:  - xbar = sample mean
-                        - t(\alpha/2|n-1) is area = \alpha/2 of t-distribution w/ n-1 dof (i.e. prob. of test statistic
-                          to exceed value st. prob. is \alpha/2)
-                        - s^2 = sample variance
-
-                ======
-
-                Confidence level assigned to variance:
-                Suppose we want to estimate the variance of (assumed) normal distribution (w/ pop. mean \mu and pop.
-                variance \sigma^2) from which random sample {x1,x2,...,xn} are drawn. Assuming pop. mean/variance are
-                unknown, the random variable Q = (n-1)s^2/\sigma^2 is chi2 distributed w/ n-1 dof. Thus, we can use
-                left/right chi-squared scores to assign a (1-\alpha) confidence level for the computed SAMPLE VARIANCE.
-
-                     CL = [ (n-1)s^2 / chi2(\alpha/2|n-1), (n-1)s^2 / chi2(1-\alpha/2|n-1) ]
-
-                where:  - s^2 = sample variance
-                        - n = sample size
-                        - chi2(\alpha/2|n-1) is value of Chi2 dist. w/ n-1 dof for which area is \alpha/2
-                        - chi2(1-\alpha/2|n-1) is value of Chi2 dist. w/ n-1 dof for which area is 1-\alpha/2
-                '''
-
                 # Set xerr to studT score if forming CL for pop. mean, and left/right Chi2 scores if forming
                 # CL for pop. stdv.
                 xerr=self.studT if stat == 'mean' else [self.leftChi2,self.rightChi2]
@@ -104,12 +178,10 @@ class gritasFig:
                 # Multiply by sample stdv., thus completing formation of CL
                 xerr*=allStats[:,1]
 
-
             # Plot bars
             self.ax.barh(barCenter, statAllLvls, self.bar_width, **kwargs)
 
-
-            # Toggle between simple or prettier bars
+            # Toggle between simple or embelished bars
             if self.simpleBars:
                 self.ax.errorbar(statAllLvls, barCenter, xerr=xerr, color=stats.colors[ns], capsize=5,ls='')
             else:
@@ -125,18 +197,40 @@ class gritasFig:
                     self.ax.barh(barCenter, xerr[1], self.bar_width, left=statAllLvls, color=stats.colors[ns],\
                                  alpha=1.0,hatch='/////',edgecolor=stats.colors[ns])
 
-        # Add annotations if not None
-        # Labeling of figure
-        # -------------------
+        # Add annotations to figure if not None
+        # -------------------------------------
         if annotation:
             self.fig.suptitle('CTL: %s'%annotation[0], x=0.125, y=0.93, ha='left', fontsize=14)
             self.ax.set_title('EXP: %s'%annotation[1], loc='left', fontsize=14)
 
         self.ax.legend(loc='lower right')
 
-
-
     def tSeries(self,allStats,stats=None,instruments=[],flavor='None'):
+        '''
+        Produce a time series plot of statistic
+
+        Parameters
+        ----------
+        allStats : numpy.ndarray
+           Statistics per level, experiment, region, and stat
+
+        stats : plot_util.Stats instance
+           Configure statistics
+
+        instruments : plot_util.Collection instance
+           Configure instruments
+
+        flavor : str
+           Statistic to form time series of (e.g., mean, stdv, or sum)
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        ValueError : Variable rval, which is ratio of maxval/minval or its reciprocal, is postive; minval,maxval define the domain of plots produced.
+        '''
         self.typ='tseries'
         # Capture minval/maxval
         minval,maxval = self.commonFigSetup(allStats,stats.units,instruments,flavor=flavor)
@@ -166,14 +260,10 @@ class gritasFig:
             elif flavor == 'sum':
                 cs=self.ax.pcolor(slices[2],cmap=plt.cm.Greens,vmin=0,vmax=np.nanmax(slices[2]))
                 cbarLabel='# Obs.'
-
         else:
-            cs=plt.pcolor(DUM,cmap=plt.cm.binary,vmin=minval,vmax=maxval)
+            raise ValueError("rval = maxval/minval is positive! This functionality is not yet established!")
         # Add colorbars to plot
         cbar = plt.colorbar(cs); cbar.ax.set_xlabel(cbarLabel)
-        # cbar_summ=plt.colorbar(cs_summ); cbar_summ.ax.set_xlabel('# Obs.')
-        # cbar_stdv=plt.colorbar(cs_stdv); cbar_stdv.ax.set_xlabel('Stdv')
-        # cbar_mean=plt.colorbar(cs_mean); cbar_mean.ax.set_xlabel('Mean')
 
         self.ax.axes.xaxis.set_visible(True)
         self.ax.axes.yaxis.set_visible(True)
@@ -186,11 +276,36 @@ class gritasFig:
         self.ax.axes.xaxis.set_major_locator(MultipleLocator(3))
         self.ax.axes.xaxis.set_minor_locator(MultipleLocator(1))
         self.ax.set_xticklabels(yyyymm, minor=False, rotation=45)
-
         self.ax.vlines(self.ax.get_xticks(),self.ax.get_ylim()[0],self.ax.get_ylim()[1],color='darkgray',linestyle=':')
 
-
     def monthlyComp(self,compareVia,expStats,cntlStats,stats=None,instruments=[],annotation=''):
+        '''
+        Form a monthly comparison between two experiments according to specified scheme
+
+        Parameters
+        ----------
+        compareVia : str
+           When two experiments are considered, compare them according to scheme (supported: 'ratio' and 'difference')
+
+        expStats : numpy.ndarray
+           'Experiment (Exp)' statistics across all vertical levels within a single region. Chosen statistic determined at calling location via 'compIdx'.
+
+        cntlStats : numpy.ndarray
+           'Control (Cntl)' statistics across all vertical levels within a single region. Chosen statistic determined at calling location via 'compIdx'.
+
+        stats : plot_util.Stats instance
+           Configure statistics
+
+        instruments : plot_util.Collection instance
+           Configure instruments
+
+        annotation : list
+           List (string) of experiment nicknames
+
+        Returns
+        -------
+        None
+        '''
         # Modify allStats based on how the two experiments should be compared
         allStats=100*(expStats/cntlStats) if compareVia == 'ratio' else expStats - cntlStats
 
@@ -200,7 +315,7 @@ class gritasFig:
 
         # Convenience
         midpnt = minval+0.5*(maxval-minval)
-        pos = arange(len(allStats)) #+nf*bar_width
+        pos = arange(len(allStats))
 
         # For the moment, we will only compare difference in means (blue) or ratio of stdv's (red)
         ecolor = 'b' if compareVia == 'difference' else 'r'
@@ -239,9 +354,29 @@ class gritasFig:
                          size=13, ha='left', va="center",
                          bbox=dict(boxstyle="round", alpha=0.1, color='g'))
 
-
-
     def commonFigSetup(self,allStats,units,instruments,flavor='None'):
+        '''
+        Common setup for figures
+
+        Parameters
+        ----------
+        allStats : numpy.ndarray
+           Statistic(s) per level, experiment(s), region(s); handles cases where multiple statistics, regions, and experiments are involved.
+
+        units : str
+           Units of statistics (used to label horizontal axes of plots)
+
+        instruments : plot_util.Collection instance
+           Configure instruments
+
+        flavor : str
+           Statistic to form time series of (e.g., mean, stdv, or sum)
+
+        Returns
+        -------
+        tuple (float)
+           min, max range of figure; set by instruments[obType]
+        '''
         self.figName='%s_%s_%s_%s_%s.%s'%(self.prefix,self.obType,self.region.name,self.typ,self.yyyymm,self.figType)
         self.fig = plt.figure(figsize=(8,10)) if self.typ == 'monthly' else plt.figure(figsize=(10,10))
         self.fig.tight_layout(pad=1.0)
@@ -255,7 +390,7 @@ class gritasFig:
         self.ax.margins(y=0)
 
         for label in self.ax.get_xticklabels():
-            label.set_fontsize(self.maxLabelSize) #10
+            label.set_fontsize(self.maxLabelSize)
             label.set_fontweight('bold')
 
         yticks = range(0,self.getDim('lev'))
@@ -263,7 +398,6 @@ class gritasFig:
         for label in self.ax.get_yticklabels():
             label.set_fontsize(self.maxLabelSize) if self.getDim('lev') <= 30 else label.set_fontsize(self.minLabelSize)
             label.set_fontweight('bold')
-
 
         vunits = instruments[self.obType].vertUnits
         ylabel='Pressure (%s)'%vunits if vunits == 'hPa' else 'Channel Index'
@@ -275,16 +409,14 @@ class gritasFig:
         self.ax.set_yticks(yticks)
         self.ax.set_yticklabels(int32(self.loc['lev'][yticks]), minor=False, rotation=0)
 
-
         prettyTimeWindow = '%i/%i'%(self.mnths[0],self.yrs[0])
         if len(self.mnths) > 1: prettyTimeWindow += ' - %i/%i'%(self.mnths[-1],self.yrs[-1])
 
         self.ax.set_title('%s\nTime Window: %s'%(self.obType.upper(),prettyTimeWindow))
 
-        # Get coordinates of axes
-        _x0,_y0,_width,_height=self.ax.get_position().bounds
         # Include instrument hame and lat/lon coordinates on figure
-        self.fig.text(_x0+_width,_y0+_height+0.005,'%s\n%s'%(self.region.name,self.region),ha='right',fontsize=14)
+        _x0,_y0,_width,_height=self.ax.get_position().bounds
+        self.fig.text(_x0+_width,_y0+_height+0.005,'%s'%self.region,ha='right',fontsize=14)
 
         minval, maxval = float(instruments[self.obType]._min), float(instruments[self.obType]._max)
         self.ax.set_xlim([minval,maxval]) if minval != maxval else self.ax.set_xlim([amin(allStats),\
@@ -292,16 +424,63 @@ class gritasFig:
 
         return minval, maxval
 
-
     def saveFig(self):
         '''
         Saves the current figure should it exist
+
+        Returns
+        -------
+        None
         '''
         if self.figExist: plt.savefig(self.figName)
 
 
-class gritasVars:
+class GritasVars:
+    '''
+    Common variables to all netCDF files produced by GrITAS
+
+    Attributes
+    ----------
+    var : numpy.ndarray
+       Statistics associated with a variable name at all horizontal/vertical gridded cells
+
+    mean : numpy.ndarray
+       Sample mean at a vertical level and across all horizontal gridded cells
+
+    stdv : numpy.ndarray
+       Sample standard deviation at a vertical level and across all horizontal gridded cells
+
+    nobs : numpy.ndarray
+       Number of observations present in each horizontal gridded cell at a set vertical level
+
+    chisqr : numpy.ndarray
+       Left Chi-Square value at a set vertical level (same value per horizontal gridded cell)
+
+    chisql : numpy.ndarray
+       Right Chi-Square value at a set vertical level (same value per horizontal gridded cell)
+
+    tstud : numpy.ndarray
+       Student-t value at a set vertical level (same value per horizontal gridded cell)
+    '''
     def read(self,nc4Var,confidence,idx):
+        '''
+        Set mean, stdv, nobs, chisqr, chisql, tstud
+
+        Parameters
+        ----------
+        nc4Var : netCDF4.Dataset.variables
+           Gridded and time-averaged statistics, associated with a variable name (e.g., instrument name), read from netCDF
+
+        confidence : bool
+           Read Chi-Square/Student-t scores to form confidence intervals
+
+        idx : int
+           Vertical level where gridded stats should be read
+
+        Returns
+        -------
+        None
+        '''
         self.var = nc4Var[:,:,:,:]
         self.mean = self.var[0,idx,:,:]
         self.stdv = self.var[1,idx,:,:]
@@ -312,7 +491,33 @@ class gritasVars:
             self.tstud  = self.var[5,idx,:,:]
 
     def sliceVar(self,var,levSlice,latSlice,lonSlice):
-        if not bool(levSlice)^bool(latSlice)^bool(lonSlice):
+        '''
+        Access a statistic at a subset of vertical levels, longitude, or latitude
+
+        Parameters
+        ----------
+        var : numpy.ma.core.MaskedArray
+           Statistic over all gridded cells from which a subset will be isolated
+
+        levSlice : list
+           Indices denoting contiguous collection of vertical levels wherein var will be considered
+
+        latSlice : list
+           Indices denoting contiguous collection of latitudes wherein var will be considered
+
+        lonSlice : list
+           Indices denoting contigious collection of longitude wherein var will be considered
+
+        Returns
+        -------
+        var : numpy.ma.core.MaskedArray
+           Original var replaced on return by subset defined by either levSlice, latSlice, or lonSlice
+
+        Raises
+        ------
+        ValueError : levSlice, latSlice, and lonSlice are mutually exclusive
+        '''
+        if int(bool(levSlice))+int(bool(latSlice))+int(bool(lonSlice)) != 1:
             raise ValueError("Must select levSlice, latSlice, or lonSlice exclusively")
 
         if levSlice:   var = var[levSlice,:,:]
@@ -322,10 +527,66 @@ class gritasVars:
 
         return var
 
+class Gritas(GritasVars,GritasFig):
+    '''
+    Class to control production of figures from GrITAS-produced netCDF files
 
+    Parameters
+    ----------
+    fname : str
+       Filename containing gridded time-averaged statistics
 
-class Gritas(gritasVars,gritasFig):
+    loc : dict
+       Grid coordinates - 'lev', 'lat', 'lon' keys map to lists of global coordinates
+
+    var : netCDF4.Dataset.variables
+       Gridded and time-averaged statistics, associated with a variable name (e.g., instrument name), read from netCDF
+
+    mean : numpy.ndarray
+       Sample mean at a vertical level and across all horizontal gridded cells
+
+    stdv : numpy.ndarray
+       Sample standard deviation at a vertical level and across all horizontal gridded cells
+
+    nobs : numpy.ndarray
+       Number of observations present in each horizontal gridded cell at a set vertical level
+
+    chisqr : numpy.ma.core.MaskedArray
+       Unnormalized (i.e., value repeated within each horizontal grid cell) Right Chi-Square score
+
+    chisql : numpy.ma.core.MaskedArray
+       Unnormalized (i.e., value repeated within each horizontal grid cell) Left Chi-Square score
+
+    tstud : numpy.ma.core.MaskedArray
+       Unnormalized (i.e, value repeated within each horizontal grid cell) Student-t score
+
+    leftChi2 : numpy.ndarray
+       Normalized Left Chi-Square score used to compute a confidence interval
+
+    rightChi2 : numpy.ndarray
+       Normalized Right Chi-Square score used to compute a confidence interval
+
+    studT : numpy.ndarray
+       Normalized Student-t score used to compute a confidence interval
+
+    supportedStats : list
+       Raw statistics supported in fname
+
+    figExist : bool
+       Whether Gritas instance has a figure associated with it
+    '''
     def __init__(self,fname,supportedStats=None):
+        '''
+        Initialize a Gritas instance
+
+        Parameters
+        ----------
+        fname : str
+           Filename containing gridded time-averaged statistics
+
+        supportedStats : list
+           Raw statistics supported in fname (e.g., mean, stdv, etc.)
+        '''
         self.fname=fname
         self.loc={}
         self.var=None
@@ -335,26 +596,49 @@ class Gritas(gritasVars,gritasFig):
         self.chisqr=None
         self.chisql=None
         self.tstud=None
-
         self.leftChi2=None
         self.rightChi2=None
         self.studT=None
-
         self.supportedStats=supportedStats
-
         self.figExist=False
 
-
     def __repr__(self):
+        '''
+        String representation of Gritas instance
+
+        Returns
+        -------
+        str
+        '''
         return "NetCDF file "+self.fname+" contains ( levels = %i, nlat = %i, nlon = %i )"%self.dims()
 
-
-    # Report dimension along a single axis of either levels, latitude, longitude
     def getDim(self,var):
+        '''
+        Report dimension along a single axis of either levels, latitude, or longitude
+
+        Parameters
+        ----------
+        var : str
+           Either 'lev', 'lat', or 'lon'
+
+        Returns
+        -------
+        int
+        '''
         return len(self.loc[var])
 
-    # Report tuple of levels, latitude, longitude dimensions
     def dims(self):
+        '''
+        Report dimensions of levels, latitude, and longitude
+
+        Returns
+        -------
+        tuple (int)
+
+        Raises
+        ------
+        ValueError : GrITAS file must first be read from
+        '''
         try:
             return self.getDim('lev'), self.getDim('lat'), self.getDim('lon')
         except:
@@ -363,9 +647,21 @@ class Gritas(gritasVars,gritasFig):
     def fromGritas(self,var,confidence,vunits):
         '''
         Read data from self.fname stored at 'var'
-        - var : instrument name (e.g. atmsnpp)
-        - optionally read t-scores and l/r chi-squared scores for assigning confidence intervals
-        - vunits : vertical units
+
+        Parameters
+        ----------
+        var : str
+           Instrument (e.g. variable name) to be read from self.fname
+
+        confidence : bool
+           Form confidence intervals after read
+
+        vunits : str
+           Vertical units used to label vertical axes of figure(s)
+
+        Returns
+        -------
+        self
         '''
         f = nc4.Dataset(self.fname,'r', format='NETCDF4')
 
@@ -375,32 +671,63 @@ class Gritas(gritasVars,gritasFig):
         # Reverse order of masked array 'lev', if vertical units are not 'hPa'
         self.loc['lev'], idx = revMaskedArray(self.loc['lev'], ( vunits != 'hPa' ) )
 
-        # Read remaining variables - ie. the statistics
+        # Read remaining variables - i.e., the statistics
         self.read(f.variables[var],confidence,idx)
-
         f.close()
         return self
 
-
     def getStat(self,stat,levSlice=None,latSlice=None,lonSlice=None,threshold=None,rescale=1.0,mask='nobs'):
-        # Check for valid statistic
+        '''
+        Get a statistic in a region of globe
+
+        Parameters
+        ----------
+        stat : str
+           Raw statistic under consideration (e.g., mean, stdv, etc.)
+
+        levSlice : list
+           Indices denoting contiguous collection of vertical levels wherein stat will be considered
+
+        latSlice : list
+           Indices denoting contiguous collection of latitude wherein stat will be considered
+
+        lonSlice : list
+           Indices denoting ontiguous collection of longitude wherein stat will be considered
+
+        threshold : int
+           Minimum number of observations in a gridded cell to be included in statistics
+
+        rescale : float
+           Multiplicatively rescale statistics
+
+        mask : str
+           Mask statistics based on 'mask' (defaults to 'nobs'). No mask is applied, if 'mask' != 'nobs'
+
+        Returns
+        -------
+        numpy.ndarray : statistic (potentially rescaled) within subset of levels, latitudes, or longitudes
+
+        Raises
+        ------
+        ValueError : stat does not match those supported in netCDF produced by GrITAS
+        '''
         if stat not in self.supportedStats:
             raise ValueError("Statistics flavor %s not supported!"%stat)
 
         # Select the correct member variable based on 'stat'
         var=None
-        if stat == 'sum' or stat == 'mean': var = self.mean #[:,latSlice,:]
-        if stat == 'stdv':                  var = self.stdv #[:,latSlice,:]
-
+        if stat == 'sum' or stat == 'mean': var = self.mean
+        if stat == 'stdv':                  var = self.stdv
 
         # Slice the member variable
         var=self.sliceVar(var,levSlice,latSlice,lonSlice)
 
-        # Local dimensions of 'var'
+        # Convenience - Local dimensions of 'var'
         varNLev, varNLat, varNLon = var.shape
 
         levelStat=np.zeros(varNLev)
         for n in range(varNLev):
+            # Form mask
             ID=np.where(self.nobs[n,latSlice,:]>threshold) if mask == 'nobs' else []
 
             if stat == 'stdv':
@@ -409,31 +736,45 @@ class Gritas(gritasVars,gritasFig):
                 levelStat[n]=var[n,:,:][ID].sum()/(varNLat*varNLon)
             else:
                 levelStat[n]=var[n,:,:][ID].sum()
+
         return rescale*levelStat
 
-
     def getConfidence(self,levSlice=None,latSlice=None,lonSlice=None,threshold=None):
-        # Confidence is repeated for each cell (ie lat x lon) at a given level
+        '''
+        Access test statistic scores to form confidence intervals
 
-        # Slice class member 'nobs'
-        nobs = self.sliceVar(self.nobs,levSlice,latSlice,lonSlice)
+        Parameters
+        ----------
+        levSlice : list
+           Indices denoting contiguous collection of vertical levels wherein test statistic scores should be accessed
+
+        latSlice : list
+           Indices denoting contiguous collection of latitudes wherein test statistic scores should be accessed
+
+        lonSlice : list
+           Indices denoting contiguous collection of longitude wherein test statistic scores should be accessed
+
+        threshold : int
+           Number of observations within a gridded cell in order for cell to be included
+
+        Returns
+        -------
+        None
+        '''
         # Convenience
+        nobs = self.sliceVar(self.nobs,levSlice,latSlice,lonSlice)
         chisql=self.sliceVar(self.chisql,levSlice,latSlice,lonSlice)
         chisqr=self.sliceVar(self.chisqr,levSlice,latSlice,lonSlice)
         tstud= self.sliceVar(self.tstud,levSlice,latSlice,lonSlice)
-
-        # Local dimensions of 'nobs'
         nLev, nLat, nLon = nobs.shape
 
-        # Left/Right Chi2 Scores, Student-T score, and Number of Observations Per Level
+        # Test statistic scores per level
         leftChi2, rightChi2, studT, sampleSize = np.zeros(nLev), np.zeros(nLev), np.zeros(nLev), np.zeros(nLev)
 
         for n in range(nLev):
+            # Form mask
             ID=np.where(nobs[n,:,:]>threshold)
             sampleSize[n] = nobs[n,:,:][ID].sum()
-            # leftChi2[n] = sqrt((sampleSize[n]-1)/(chisql[n,:,:][ID].sum()/(nLat*nLon)))
-            # rightChi2[n] = sqrt((sampleSize[n]-1)/(chisqr[n,:,:][ID].sum()/(nLat*nLon)))
-            # studT[n] = (tstud[n,:,:][ID].sum()/(nLat*nLon))/sqrt(sampleSize[n])
             leftChi2[n] = sqrt((sampleSize[n]-1)/lvlAvg(chisql[n,:,:],ID))
             rightChi2[n] = sqrt((sampleSize[n]-1)/lvlAvg(chisqr[n,:,:],ID))
             studT[n] = lvlAvg(tstud[n,:,:],ID)/sqrt(sampleSize[n])
@@ -442,7 +783,36 @@ class Gritas(gritasVars,gritasFig):
         self.rightChi2 = rightChi2
         self.studT = studT
 
-
     def plotInit(self,prefix,obType,region,scale,simpleBars,yrs,mnths):
-        gritasFig.__init__(self,prefix,obType,region,scale,simpleBars,yrs,mnths)
+        '''
+        Initialize a figure
+
+        Parameters
+        ----------
+        prefix : str
+           Prefix of figure to be saved
+
+        obType : str
+           Instrument name belonging to experiment(s)
+
+        region : plot_util.Region instance
+           A geographic region figure will correspond to
+
+        scale : float
+           Rescale statistics
+
+        simpleBars : bool
+           Embelished confidence intervals
+
+        yrs : list
+           List of years in time window
+
+        mnths : list
+           List of months in time window
+
+        Returns
+        -------
+        None
+        '''
+        GritasFig.__init__(self,prefix,obType,region,scale,simpleBars,yrs,mnths)
         self.figExist=True
