@@ -1,7 +1,7 @@
 # GrITAS Processing
 ###### The processing of observation data stream (**ods**) files with GrITAS proceeds through three provided scripts.<br>
 ---
-### For Successful Operation
+### Initial Step For Successful Operation
 GrITAS is known to fail (segfaults) for `cris_fsr_npp`, `iasi_metop-a`, and `iasi_metop-b` instruments when the host stacksize is not sufficiently large. A quick user workaround is to add the follow line to either of the user's `.bashrc` or `.cshrc` file, and subsequently re-source it.
 ```bash
 # Unlimited stack size in ~/.bashrc
@@ -16,46 +16,47 @@ unlimit stacksize
 2. ```build-yaml.py```
 3. ```grdstats.py```
 
-Unless specified otherwise, a verbose explanation of each script and its input arguments is achieved by calling ```driver.sh``` without any arguments, and passing **-h** to each ```*.py``` script. The functionality is described below.
+Unless specified otherwise, a verbose explanation of each script and its input arguments is achieved by calling shell (python) scripts without (with "-h") arguments.
 
 ### ```driver.sh```
 #### Purpose:
-Determine all accessible ***diag***-type **ods** files for a user-specified experiment identifier within two specified calendar dates (inclusive), and across four synoptic times - `00Z, 06Z, 12Z, 18Z`
+Determine all accessible ***diag***-type **ods** files for a user-specified experiment within two specified calendar dates (inclusive), and across four synoptic times - `00Z, 06Z, 12Z, 18Z`
+A description of input arguments is accessed via:
+```bash
+./driver.sh
+```
+```
+Usage: driver.sh <INI YYYYMMDD> <FIN YYYYMMDD> <PREFIX> <ABRV>
 
+   YYYYMMDD : Initial/final dates in form YYYYMMDD (e.g., 20170104 = 01/04/2017 or Jan. 4, 2017)
+   PREFIX   : Prefix of absolute path to experiment
+   ABRV     : User-provided shorthand name for experiment
+```
 | Arguments        | Explanation   | Notes  |
 | ---------------- |:-------------:| -----:|
-| YR INI   | year of initial observations | Specify as standard four-digit year (ex. 2015) |
-| MNTH INI | month of initial observations| Specify as either one- or two-digit month (ex. 3 or 03 for March) |
-| DAY INI  | day of initial observations  | Specify as either one- or two-digit day (ex. 5 or 05 for 5th day of month)|
-| YR FIN   | year of final observations   | [See above] |
-| MNTH FIN | month of final observations  | [See above] |
-| DAY FIN  | day of final observations    | [See above] |
-| EXPID    | experiment identifier        | Currently supported: GEOSIT, GEOSFP, MERRA2
+| INI YYYYMMDD   | date of initial observations | Specify as standard four-digit year, two-digit month, two-digit day (ex. 20150110 for January 10, 2015) |
+| FIN YYYYMMDD   | date of final observations | [See above] |
+| PREFIX         | absolute path prefix to ods files for experiment | For example, experiment x0049 on Discover : /discover/nobackup/projects/gmao/dadev/dao_it/archive/x0049/obs |
+| ABRV           | user-defined shorthand for experiment        | - |
 
-Upon error-free termination, four space-delimited `list` files will be generated, one for each synoptic time, cataloging all instrument `*ods` files available within the specified date range. Each list is of the form:
+Upon error-free termination, four space-delimited `list` files will be generated, one for each synoptic time, cataloging all instrument `*ods` files available within the specified date range for the specified experiment. Each list is of the form:
 ```
 <EXPID>.<YYYYMMDD INI>-<YYYYMMDD FIN>.H<SYNOPTIC TIME>.list
 ```
-Example -- GEOSIT experiment identifier between 2017-01-01 & 2017-01-03:
+Example -- Experiment ABRV = GEOSIT between 2017-01-01 & 2017-01-03:
 ```bash
           GEOSIT.20170101-20170103.H00.list
           GEOSIT.20170101-20170103.H06.list
           GEOSIT.20170101-20170103.H12.list
           GEOSIT.20170101-20170103.H18.list
 ```
-The contents of each produced list file is as follows:
+The contents of each produced list file would then be as follows:
 ```
 Instrument Date ExpID
-airs_aqua 20170101 d5294_geosit_jan18
+airs_aqua 20170101 GEOSIT
 ...
 ```
 Being a space-delimited ASCII file with lines of variable character length, such files may be dense to read, especially for large date ranges. However, the format is easily parsed by the python scripts that follow.
-
-__Important__: the precise location of observations corresponding to each supported experiment identifier is hardcoded within the local bash function
-```bash
-obsSysLoc()
-```
-Additional supported sources can be added at ```line 12```.
 
 <br>
 <br>
@@ -76,15 +77,15 @@ Options:
                         Measurements confidence level (default = 0.95)
   -d DATE, --date=DATE  Start/End dates of measurements - delimited via "/"
                         (default = YYYYMMDD/YYYYMMDD)
-  -e PREFEXPDIR, --prefExpDir=PREFEXPDIR
-                        Prefix of directories containing measurements (default
-                        = "./")
-  -g PREFGRITAS, --prefGrITAS=PREFGRITAS
+  -e PREFIX, --prefix=PREFIX
+                        Absolute path prefix to ods files for experiment
+                        (default = "./")
+  -g PREFGRITAS, --prefGritas=PREFGRITAS
                         Prefix of GrITAS src (default = ./)
-  -l EXPOBSLISTPREFIX, --expObsListPrefix=EXPOBSLISTPREFIX
-                        Instrument/Date/ExpID list file prefix (default = foo)
-  -s EXPID, --exp=EXPID
-                        Experiment identifier (default = )
+  -l EXPODSLISTPREFIX, --expOdsListPrefix=EXPODSLISTPREFIX
+                        Instrument/Date/ExpID list file prefix (default =
+                        ods.list)
+  -s ABRV, --abrv=ABRV  User-defined shorthand for experiment (default = )
   -t SYNOPTICTIMES, --synopticTimes=SYNOPTICTIMES
                         Right-justified, two integer synoptic times -
                         delimited via "/" (default = 00/06/12/18)
@@ -93,17 +94,17 @@ Options:
 
 | Arguments        | Explanation   | Notes  |
 | ---------------- |:-------------:| -----:|
-| CONFIDENCE       | Confidence level of measurements (*need to check this one*) | Defaults to `0.95` |
+| CONFIDENCE       | Confidence level of measurements | Defaults to `0.95` |
 | DATE             | Forward slash delimited starting & ending dates | Format `YYYYMMDD/YYYYMMDD`, with `[INI DATE]`/`[FIN DATE]` |
-| PREFEXPDIR       | Directory prefix wherein observations (ods files) are located | User must currently turn to `obsSysLoc()` function of `driver.sh` for precise locations associated with supported experiment identifiers.|
+| PREFIX           | Absolute path prefix to ods files for experiment | - |
 | PREFGRITAS       | Location of GrITAS source code   | User specified |
-| EXPOBSLISTPREFIX | Prefix of list files produced by `driver.sh`  | Example: `GEOSIT.20170101-20170103` for the GEOSIT experiment identifier between 2017-01-01 & 2017-01-03 |
-| EXPID            | experiment identifier | Currently supported: GEOSIT, GEOSFP, MERRA2 |
-| SYNOPTICTIMES    | Forward slash delimited synoptic times to consider | Any combination within {`00`,`06`,`12`,`18`} may be selected; if option is omitted at command line, all four synoptic times will be considered (templated within yaml generated).
-| dryRun           | Debug | No additional argument needed.
+| EXPODSLISTPREFIX | Prefix of list files produced by `driver.sh` | Example: `GEOSIT.20170101-20170103` for the GEOSIT experiment identifier between 2017-01-01 & 2017-01-03 |
+| ABRV             | User-defined shorthand for experiment | - |
+| SYNOPTICTIMES    | Forward slash delimited synoptic times to consider | Any combination within {`00`,`06`,`12`,`18`} may be selected; if option is omitted at command line, all four synoptic times will be considered. |
+| dryRun           | Debug | - |
 
 Successful execution will produce a single `yaml` file. Operationally,
-* `build-yaml.py` will consider the intersection of each experiment's observation list file (e.g. `$EXPOBSLISTPREFIX.H<hh>.list` with `<hh>` among each of chosen `SYNOPTICTIMES`)
+* `build-yaml.py` will consider the intersection of each experiment's observation list file (e.g. `$EXPODSLISTPREFIX.H<hh>.list` with `<hh>` among each of chosen `SYNOPTICTIMES`)
 * this intersection establishes a set of instruments common across each synoptic time and date range
 * for each such instrument, `build-yaml.py` checks that a corresponding resource control (`*rc`) exists
 * instruments that remain have an `*rc` file and are included in output `yaml` file only if unique (avoids unnecessary repetition)
@@ -116,9 +117,9 @@ convObs=['upconv','upconv2','gps_100lev']
 ```
 
 ###### To-Do: Improvements
-- [ ] Set `PREFEXPDIR` internally through an external call to `obsSysLoc()` function within `driver.sh`.
+- [x] Set `PREFEXPDIR` internally through an external call to `obsSysLoc()` function within `driver.sh`.
 - [ ] Set `PREFGRITAS` as a global export statement when environment is sourced.
-- [ ] Report to user combinations of `*ods` and `*rc` files that do not have matches.
+- [x] Report to user combinations of `*ods` and `*rc` files that do not have matches.
 - [ ] Allow user to amend `convObs` list
 
 <br>
@@ -128,7 +129,7 @@ convObs=['upconv','upconv2','gps_100lev']
 #### Purpose: <"gridded statistics">
 Drive `gritas.x` for an experiment identifier for user-selected synoptic times within a range of (inclusive) dates. <br>**Most importantly**, `build-yaml.py` and `grdstats.py` are envisioned to work in unison so as to abstract away cumbersome creation of command line input to `gritas.x`. Provided correct input is given to `build-yaml.py`, a user need only do the following:
 ```bash
-./grdstats.py foo.gritas.yml
+./grdstats.py <YAML from build-yaml.py>
 ```
 **Under the hood**, `grdstats.py` forms the following chain of arguments to pass to `gritas.x` for each instrument available for the specified experiment identifier and range of dates:
 ```bash
@@ -146,7 +147,7 @@ where
 
 Generated NetCDF files from call(s) to `gritas.x` are populated at current working directory according to
 ```bash
-<EXPID>/<RESIDUAL>/<YYYYMMDD INI>-<YYYYMMDD FIN>/<INSTRUMENT>_gritas.nc4
+<ABRV>/<RESIDUAL>/<YYYYMMDD INI>-<YYYYMMDD FIN>/<INSTRUMENT>_gritas.nc4
 ```
 Example NetCDF files produced from GEOSIT experiment identifier between 2017-01-01 & 2017-01-03:
 ```bash
