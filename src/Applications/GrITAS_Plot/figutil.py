@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import sys
+import warnings
 import netCDF4 as nc4
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -672,7 +673,12 @@ class Gritas(GritasVars,GritasFig):
         self.loc['lev'], idx = revMaskedArray(self.loc['lev'], ( vunits != 'hPa' ) )
 
         # Read remaining variables - i.e., the statistics
-        self.read(f.variables[var],confidence,idx)
+        try:
+            self.read(f.variables[var],confidence,idx)
+        except:
+            warnings.warn("  > Found instrument name in netCDF file does not match obtype in yaml! Will extract from netCDF.variables keys.")
+            varList = list(f.variables.keys())
+            self.read(f.variables[varList.pop(-1)],confidence,idx)
         f.close()
         return self
 
