@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import warnings
 from optparse import OptionValueError
 from plot_util import Instrument
 
@@ -87,12 +88,17 @@ def avail_instruments(option, opt_str, value, parser):
 
     Raises
     ------
-    OptionValueError : instrument not found among supported instruments dictionary
+    Warning : instrument not found among supported instruments dictionary - appended with default domain of (90.0,110.0)
     '''
     if value in instruments:
         setattr(parser.values, option.dest, value)
     else:
-        _avail_="Available instruments: "
+        _avail_="\t\tAvailable instruments: "
         for k in instruments.keys():
             _avail_+='%s '%k
-        raise OptionValueError(_avail_)
+
+        bold='\033[1m'+value+'\033[0m'
+        warnings.warn("\n\tInstrument %s not present in default instruments dictionary!\n%s"%(bold,_avail_) +
+                      "\n\tAdding instrument %s to instruments dictionary with default domain"%bold)
+        instruments.update({value: Instrument(value,_min=90.0,_max=110.0)})
+        setattr(parser.values, option.dest, value)
