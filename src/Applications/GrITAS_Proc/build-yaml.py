@@ -109,7 +109,7 @@ base = [ ('global', {'start date': startDate, 'end date': endDate, 'confidence':
          ('instruments', uniqInstr), ('dryrun', options.dryRun),
          ('expid', expID),
          ('expdir', options.prefix + expDirSuffix),
-         ('outdir', abrv), ('rc location', options.prefGritas + '/Components/gritas/etc/'),
+         ('outdir', abrv), ('rc location', rcLoc),
          ('residuals', resids) ]
 
 for k,v in base:

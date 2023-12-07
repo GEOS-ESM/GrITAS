@@ -96,7 +96,7 @@ Options:
 | ---------------- |:-------------:| -----:|
 | CONFIDENCE       | Confidence level of measurements | Defaults to `0.95` |
 | DATE             | Forward slash delimited starting & ending dates | Format `YYYYMMDD/YYYYMMDD`, with `[INI DATE]`/`[FIN DATE]` |
-| PREFIX           | Absolute path prefix to ods files for experiment | - |
+| PREFIX           | Absolute path prefix to ods files for experiment | This should match `PREFIX` passed to `driver.sh` |
 | PREFGRITAS       | Location of GrITAS source code   | User specified |
 | EXPODSLISTPREFIX | Prefix of list files produced by `driver.sh` | Example: `GEOSIT.20170101-20170103` for the GEOSIT experiment identifier between 2017-01-01 & 2017-01-03 |
 | ABRV             | User-defined shorthand for experiment | - |
