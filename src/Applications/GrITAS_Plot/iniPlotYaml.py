@@ -1,7 +1,8 @@
 #!/usr/bin/env python
+
 import yaml
 import common
-import sys, optparse
+import os, sys, optparse
 import pandas as pd
 import defaults
 from plot_util import *
@@ -12,8 +13,8 @@ parser = optparse.OptionParser(usage);
 
 parser.add_option("-d","--date",type=str,default='YYYYMMDD/YYYYMMDD',
                   help='Start/End dates of measurements - delimited via "/" (default = YYYYMMDD/YYYYMMDD)')
-parser.add_option("-e","--exp",type=str,default='',
-                  help='Yaml containing experiment(s) information')
+parser.add_option("-e","--expIDs",type=str,default='/',
+                  help='ID(s) for experiment(s) to plot gridded stats for - forward slash delimited (default = /)')
 parser.add_option("-i",type=str,dest='instrument',action="callback",
                   default='atmsnpp',callback=defaults.avail_instruments,
                   help='Specify instrument to consider (default = atmsnpp)')
@@ -86,12 +87,13 @@ Instruments = Collection('instruments',[defaults.instruments[options.instrument]
 pandasDates = pd.date_range(start=options.date.split('/')[0],
                             end=options.date.split('/')[1],freq='D')
 
-# Get the experiments to consider
+# Form the experiments to consider
 # -------------------------------
-experiments = Collection('experiments');
-with open(options.exp, 'r') as f:
-    expYaml = yaml.load(f, Loader=yaml.FullLoader)
-    experiments.fromYaml(expYaml['experiments'],cls='EXPERIMENT')
+experiments = Collection('experiments')
+for e in options.expIDs.split('/'):
+    experiments.append(Experiment(name=e,nickname=e,
+                                  pathToFile='%s/%s/oma/%s/%s_gritas.nc4'%
+                                  (os.getcwd(),e,options.date.replace('/','-'),options.instrument)))
 
 # Modify plot params
 # ------------------
