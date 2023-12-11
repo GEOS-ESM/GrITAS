@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import warnings
 from optparse import OptionValueError
@@ -98,7 +98,8 @@ def avail_instruments(option, opt_str, value, parser):
             _avail_+='%s '%k
 
         bold='\033[1m'+value+'\033[0m'
+        dom='\033[1m'+'(90.0,110.0)'+'\033[0m'
         warnings.warn("\n\tInstrument %s not present in default instruments dictionary!\n%s"%(bold,_avail_) +
-                      "\n\tAdding instrument %s to instruments dictionary with default domain"%bold)
+                      "\n\tAdding instrument %s to instruments dictionary with default domain = %s"%(bold,dom))
         instruments.update({value: Instrument(value,_min=90.0,_max=110.0)})
         setattr(parser.values, option.dest, value)

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import os
 import yaml
@@ -127,8 +127,7 @@ class Gritas:
         with open(self.yml, 'r') as f:
             valsYML = yaml.load(f, Loader=yaml.FullLoader)
 
-        self.dateEnd, self.dateStart, self.conf = tuple(valsYML['global'].values())
-        # self.dateStart, self.dateEnd, self.conf = tuple(valsYML['global'].values())
+        self.dateStart, self.dateEnd, self.conf = tuple(valsYML['global'].values())
         self.instruments = valsYML['instruments']
         self.dryRun = valsYML['dryrun']
         self.expId = valsYML['expid']
