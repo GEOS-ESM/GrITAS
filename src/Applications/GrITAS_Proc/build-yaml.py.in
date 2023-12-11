@@ -14,8 +14,6 @@ parser.add_option("-d","--date",type=str,default='YYYYMMDD/YYYYMMDD',
                   help='Start/End dates of measurements - delimited via "/" (default = YYYYMMDD/YYYYMMDD)')
 parser.add_option("-e","--prefix",type=str,default='./',
                   help='Absolute path prefix to ods files for experiment (default = "./")')
-parser.add_option("-g","--prefGritas",type=str,default='./',
-                  help='Prefix of GrITAS src (default = ./)')
 parser.add_option("-l","--expOdsListPrefix",type=str,default='ods.list',
                   help='Instrument/Date/ExpID list file prefix (default = ods.list)')
 parser.add_option("-s","--abrv",type=str,default='',
@@ -54,7 +52,7 @@ expID=expID[0]
 
 # Convenience
 nSynoptic=len(options.synopticTimes.split('/'))
-rcLoc=options.prefGritas + '/Components/gritas/etc/'
+rcLoc=os.path.join('CMAKE_INSTALL_PREFIX','etc')
 resids=['omf','oma']
 expDirSuffix='/Y%Y/M%m/D%d/H'
 if nSynoptic == 1:
@@ -70,7 +68,7 @@ expDirSuffix += '/%s.diag_'%expID
 #....and ods files exist for all dates in range
 uniqInstr=[]
 for instr in insList:
-    thisRCFile='%sgritas_%s.rc'%(rcLoc,instr)
+    thisRCFile='%s/gritas_%s.rc'%(rcLoc,instr)
     match=os.path.isfile(thisRCFile)
 
     # Check all dates in range
