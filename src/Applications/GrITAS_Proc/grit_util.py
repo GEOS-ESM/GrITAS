@@ -160,7 +160,7 @@ class Gritas:
         instr : str
             Instrument read from yaml file for this set of measurements
         '''
-        self.ioptions = ' -nopassive -%s -rc %sgritas_%s.rc'%(res,self.rcLoc,instr)
+        self.ioptions = ' -nopassive -%s -rc %s'%(res,os.path.join(self.rcLoc,'gritas_%s.rc'%instr))
         if self.conf > 0.0: self.ioptions += ' -conf %s'%self.conf
 
     def wopts(self,res,yr,mm,dd,yr_f=None,mm_f=None,dd_f=None):
