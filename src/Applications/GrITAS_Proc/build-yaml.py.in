@@ -14,6 +14,8 @@ parser.add_option("-d","--date",type=str,default='YYYYMMDD/YYYYMMDD',
                   help='Start/End dates of measurements - delimited via "/" (default = YYYYMMDD/YYYYMMDD)')
 parser.add_option("-e","--prefix",type=str,default='./',
                   help='Absolute path prefix to ods files for experiment (default = "./")')
+parser.add_option("--rcOverride",type=str,default='',
+                  help='Override location of rc files from install/etc (deault = '')')
 parser.add_option("-l","--expOdsListPrefix",type=str,default='ods.list',
                   help='Instrument/Date/ExpID list file prefix (default = ods.list)')
 parser.add_option("-s","--abrv",type=str,default='',
@@ -52,7 +54,7 @@ expID=expID[0]
 
 # Convenience
 nSynoptic=len(options.synopticTimes.split('/'))
-rcLoc=os.path.join('CMAKE_INSTALL_PREFIX','etc')
+rcLoc=os.path.join('CMAKE_INSTALL_PREFIX','etc') if not options.rcOverride else options.rcOverride
 resids=['omf','oma']
 expDirSuffix='/Y%Y/M%m/D%d/H'
 if nSynoptic == 1:
