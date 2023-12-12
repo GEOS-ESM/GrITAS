@@ -80,8 +80,9 @@ Options:
   -e PREFIX, --prefix=PREFIX
                         Absolute path prefix to ods files for experiment
                         (default = "./")
-  -g PREFGRITAS, --prefGritas=PREFGRITAS
-                        Prefix of GrITAS src (default = ./)
+  --rcOverride=RCOVERRIDE
+                        Override location of rc files from install/etc (deault
+                        = )
   -l EXPODSLISTPREFIX, --expOdsListPrefix=EXPODSLISTPREFIX
                         Instrument/Date/ExpID list file prefix (default =
                         ods.list)
@@ -97,7 +98,7 @@ Options:
 | CONFIDENCE       | Confidence level of measurements | Defaults to `0.95` |
 | DATE             | Forward slash delimited starting & ending dates | Format `YYYYMMDD/YYYYMMDD`, with `[INI DATE]`/`[FIN DATE]` |
 | PREFIX           | Absolute path prefix to ods files for experiment | This should match `PREFIX` passed to `driver.sh` |
-| PREFGRITAS       | Location of GrITAS source code   | User specified |
+| RCOVERRIDE       | Override location of rc files from `<INSTALL DIR>/etc` to specified path | By not passing this flag, rc files will be pulled from `<INSTALL DIR>/etc`. |
 | EXPODSLISTPREFIX | Prefix of list files produced by `driver.sh` | Example: `GEOSIT.20170101-20170103` for the GEOSIT experiment identifier between 2017-01-01 & 2017-01-03 |
 | ABRV             | User-defined shorthand for experiment | - |
 | SYNOPTICTIMES    | Forward slash delimited synoptic times to consider | Any combination within {`00`,`06`,`12`,`18`} may be selected; if option is omitted at command line, all four synoptic times will be considered. |
@@ -118,7 +119,7 @@ convObs=['upconv','upconv2','gps_100lev']
 
 ###### To-Do: Improvements
 - [x] Set `PREFEXPDIR` internally through an external call to `obsSysLoc()` function within `driver.sh`.
-- [ ] Set `PREFGRITAS` as a global export statement when environment is sourced.
+- [x] Set `PREFGRITAS` as a global export statement when environment is sourced.
 - [x] Report to user combinations of `*ods` and `*rc` files that do not have matches.
 - [ ] Allow user to amend `convObs` list
 
@@ -133,12 +134,12 @@ Drive `gritas.x` for an experiment identifier for user-selected synoptic times w
 ```
 **Under the hood**, `grdstats.py` forms the following chain of arguments to pass to `gritas.x` for each instrument available for the specified experiment identifier and range of dates:
 ```bash
-gritas.x  -nopassive -<RESID> -rc $PREFGRITAS/Components/gritas/etc/gritas_<INSTRUMENT>.rc \
+gritas.x  -nopassive -<RESID> -rc <INSTALL DIR>/etc/gritas_<INSTRUMENT>.rc \
     -conf $CONFIDENCE -o <OUTDIR> <ODS FILES>
 ```
 where
 * `RESID` : hardcoded residuals (currently `omf` & `oma`)
-* `PREFGRITAS` : location of GrITAS source
+* `INSTALL DIR` : location of GrITAS installation
 * `INSTRUMENT` : a given instrument under investigation
 * `CONFIDENCE` : confidence level of measurements
 * `OUTDIR` : output location of `gritas.x` execution
