@@ -336,7 +336,8 @@ class GritasFig:
                 self.ax.plot(refline, pos, color='k', lw=1, alpha=0.8)
 
             # Plot errorbars regardless of compareVia
-            self.ax.errorbar(allStats, pos, xerr=xerr, ecolor=ecolor, lw=2, capsize=5, ls=':', color='gray')
+            self.ax.plot(allStats, pos, lw=2, color=ecolor)
+            self.ax.fill_betweenx(pos, allStats-xerr[0], allStats+xerr[-1], color=ecolor, alpha=0.4)
         else:
             self.ax.plot(allStats,pos)
 
