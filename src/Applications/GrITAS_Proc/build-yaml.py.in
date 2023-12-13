@@ -32,7 +32,7 @@ conf=options.confidence
 pandasDates=pd.date_range(start=options.date.split('/')[0],end=options.date.split('/')[1],freq='D')
 startDate=pandasDates[0].strftime('%Y-%m-%d')
 endDate=pandasDates[-1].strftime('%Y-%m-%d')
-abrv=options.abrv.upper()
+abrv=options.abrv
 
 # List of instruments/dates/expIDs'
 # Determined by opening each expObsList file corresponding to desired synoptic time,
