@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import argparse
 import grit_util
@@ -20,12 +20,9 @@ cal=grit_util.calendar(gritas.dateStart, gritas.dateEnd,freq='D')
 #------------------
 files = [date.strftime(gritas.expDir) for date in cal.dates]
 
-
 # Conventional obs
 #-------------------
 convObs=['upconv','upconv2','gps_100lev']
-
-
 
 # Vars for creating directory structure for GrITAS output
 #---------------------------------------------------------

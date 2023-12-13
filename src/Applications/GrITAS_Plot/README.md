@@ -13,13 +13,13 @@
 ```bash
 ./iniPlotYaml.py -h
 
-Usage: iniPlotYaml.py [options]
-
 Options:
   -h, --help            show this help message and exit
   -d DATE, --date=DATE  Start/End dates of measurements - delimited via "/"
                         (default = YYYYMMDD/YYYYMMDD)
-  -e EXP, --exp=EXP     Yaml containing experiment(s) information
+  -e EXPIDS, --expIDs=EXPIDS
+                        ID(s) for experiment(s) to plot gridded stats for -
+                        forward slash delimited (default = /)
   -i INSTRUMENT         Specify instrument to consider (default = atmsnpp)
   -r STATSINREGIONS     Geographic regions (delimited via forward slash) over
                         which statistics should be viewed (default = glo)
@@ -43,7 +43,7 @@ Options:
 | Arguments        | Explanation   | Notes  |
 | ---------------- |:-------------:| -----:|
 | DATE   | Time window over which to visualize statistics. | Passed at command line as ```YYYYMMDD/YYYYMMDD``` |
-| EXP | Standalone yaml config collecting names of experiment(s) to consider, nicknames, and absolute paths. | Max of two experiments can be visualized at once. If two experiments are provided, the first is treated as the ***control*** (`cntl`) and the second is deemed ***experiment*** (`exp`). See **Additional Notes** below for further information. |
+| EXPIDS | Select one or two experiments to visualize statistics - denoted via user-defined shorthand `ABRV` passsed to `driver.sh`. | Max of two experiments can be visualized at once. If two experiments are provided, the first is treated as the ***control*** (`cntl`) and the second is deemed ***experiment*** (`exp`). See **Additional Notes** below for further information. |
 | INSTRUMENT | Single observing instrument among experiment(s) in `EXP` for which statistics should be viewed. | Defaults to *atmsnpp*, if `-i` is not provided. User is alerted if instrument does not match those that are supported. **N.B.**: plotting range associated with each instrument should be adjusted to user's specifications. |
 | STATSINREGIONS | User-selected regions to consider. | Default regions available: `glo, nhe, she, tro, nam` denoting Global, Northern Hemisphere, Southern Hemisphere, Tropics, North America, respectively. Custom regions may be specified, provided they are defined via the `USRDEFREGIONS` argument. Multiple regions are forward-slash delimited. |
 | STATSTOVIEW | View these statistics, regardless of type of plot desired. | Forward-slash delimited; defaults to (sample) mean and (sample) standard deviation (i.e. 'mean'/'stdv').
@@ -58,31 +58,7 @@ Options:
 | T | Form a time series plot. | Visualize the time evolution of an observing system's `TSERIESVAR` statistic across time window specified by `DATE`. Only allowed for a single experiment. |
 
 **Additional Notes:**
-- `EXP` is a standalone YAML denoting experiment(s) to consider. An example, provided below, is for atmsnpp innovations at 0Z for November 2022:
-  ```yaml
-  experiments:
-    f5294_fp:
-      nickname: geosfp
-      file name: /discover/nobackup/rtodling/Eval/__ID__/obs/NovDec22/__ID__.atms_npp_0h_gritas_omf.nc4
-    f5295_fpp:
-      nickname: geosfpp
-      file name: /discover/nobackup/rtodling/Eval/__ID__/obs/NovDec22/__ID__.atms_npp_0h_gritas_omf.nc4
-
-  ```
-  In general, experiments are specified in the following fashion:
-  ```yaml
-  experiments:
-    <some experiment name>:
-      nickname: <nickname for experiment>
-      file name: <absolute path to netCDF produced as output from gritas.x>
-    .
-    .
-    .
-  ```
-  NOTE: each instance of `__ID__` in `file name` will be replaced by the corresponding experiment's `nickname`.
-
-  While more than two such experiments may be specified in this yaml file, the statistics visualization support detailed below will function *with, maximally, only two experiments specified*.
-
+  The statistics visualization support detailed below will function *with, maximally, only two experiments specified*.
 
 - Example yamls for each of ***DFS***, ***IMPACT***, ***RESID*** can be found in the `templates` directory.
 

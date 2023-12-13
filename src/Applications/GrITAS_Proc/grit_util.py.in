@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import os
 import yaml
@@ -18,7 +18,7 @@ class calendar:
 
     months : list
         List of months in dates
-    
+
     days : list
         List of days in dates
     '''
@@ -28,12 +28,11 @@ class calendar:
         self.years = self.dates.year
         self.months = self.dates.month
         self.days = self.dates.day
-    
-        
+
 class Gritas:
     '''
     GrITAS Driver Class
-    
+
     Attributes
     ----------
     dateStart: str
@@ -74,7 +73,7 @@ class Gritas:
 
     nc4 : str
         NetCDF file wherein gritas will dump statistics
-    
+
     Methods
     -------
     iopts(res,instr)
@@ -113,9 +112,8 @@ class Gritas:
         self.ioptions=''
         self.woptions=''
         self.nc4=''
-        
+
         self.__parse__()
-        
 
     def __parse__(self):
         '''
@@ -127,8 +125,7 @@ class Gritas:
         with open(self.yml, 'r') as f:
             valsYML = yaml.load(f, Loader=yaml.FullLoader)
 
-        self.dateEnd, self.dateStart, self.conf = tuple(valsYML['global'].values())
-        # self.dateStart, self.dateEnd, self.conf = tuple(valsYML['global'].values())
+        self.dateStart, self.dateEnd, self.conf = tuple(valsYML['global'].values())
         self.instruments = valsYML['instruments']
         self.dryRun = valsYML['dryrun']
         self.expId = valsYML['expid']
@@ -161,7 +158,7 @@ class Gritas:
         instr : str
             Instrument read from yaml file for this set of measurements
         '''
-        self.ioptions = ' -nopassive -%s -rc %sgritas_%s.rc'%(res,self.rcLoc,instr)
+        self.ioptions = ' -nopassive -%s -rc %s'%(res,os.path.join(self.rcLoc,'gritas_%s.rc'%instr))
         if self.conf > 0.0: self.ioptions += ' -conf %s'%self.conf
 
     def wopts(self,res,yr,mm,dd,yr_f=None,mm_f=None,dd_f=None):
@@ -198,7 +195,6 @@ class Gritas:
             self.woptions += '-%s%s%s'%(yr_f,mm_f,dd_f)
         self.__exe__('mkdir -p %s'%self.woptions)
 
-        
     def nc4Opts(self,instr):
         '''
         Set name of nc4 file generated upon gritas execution
@@ -226,11 +222,5 @@ class Gritas:
         iargs = '%s%s*.ods '%(Files[0],instr)
         for f in Files[1:]:
             iargs += '%s%s*.ods '%(f,instr)
-        
-        self.__exe__('gritas.x %s%s %s'%(self.ioptions,self.nc4,iargs))
-        # self.__exe__('which gritas.x')
 
-        
-        
-
-        
+        self.__exe__('%s %s%s %s'%(os.path.join('CMAKE_INSTALL_PREFIX','bin','gritas.x'),self.ioptions,self.nc4,iargs))

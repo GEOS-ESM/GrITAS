@@ -22,3 +22,8 @@ set (srcs
 esma_add_library (${this} SRCS ${srcs} DEPENDENCIES GMAO_ods)
 target_compile_options(${this} PRIVATE ${flags} ${EXTENDED_SOURCE})
 
+file(GLOB rc_files etc/gritas_*rc)
+install(
+  FILES ${rc_files}
+  DESTINATION etc
+)

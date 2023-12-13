@@ -1,2 +1,3 @@
 esma_add_subdirectories(GrITAS_App)
-
+esma_add_subdirectories(GrITAS_Proc)
+esma_add_subdirectories(GrITAS_Plot)
