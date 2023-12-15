@@ -579,9 +579,10 @@ class PlotParams(Serializer):
         ------
         ValueError : compareVia is neither 'ratio' nor 'difference'
         '''
-        if self.compareVia not in ['ratio','difference']:
+        valid = ['ratio','difference','difference+ratio','ratio+difference']
+        if self.compareVia not in valid:
             raise ValueError("%s is an unsupported manner to compare two experiments - please select from %s"%
-                             (self.compareVia,['ratio','difference']))
+                             (self.compareVia,valid))
 
     def fromYaml(self,yamlTop):
         '''
