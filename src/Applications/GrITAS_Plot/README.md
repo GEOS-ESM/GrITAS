@@ -29,7 +29,7 @@ Options:
   --impact              Create yaml for observation impact
   --resid               Create yaml for observation residuals
   --compVia=COMPVIA     If two experiments are provided, compare them
-                        according this scheme (default = ratio)
+                        according to this scheme (default = ratio)
   --tSeriesVar=TSERIESVAR
                         Specify stat to view time series for - ignored if
                         options.T is False (default = '')
@@ -50,7 +50,7 @@ Options:
 | DFS | Produces input yaml specialized for DFS. | - |
 | IMPACT | Produces input yaml specialized for observation impact. | - |
 | RESID | Produces input yaml specialized for observation residuals. | - |
-| COMPVIA | If two experiments are given in `EXP`, compare them according to this scheme. | Supported schemes: **ratio** or **difference**. See **On Confidence Intervals** for further details. |
+| COMPVIA | If two experiments are given in `EXP`, compare them according to this scheme. | Supported schemes: **ratio**, **difference**, **ratio+difference**, or **difference+ratio**. When both ratio and difference are chosen, each line plot will be superimposed onto a single figure. See **On Confidence Intervals** for further details. |
 | TSERIESVAR | View time series of this statistic. | Acceptable variables: mean, stdv, sum. Option is ignored if `options.T` is not provided at command line. |
 | USRDEFREGIONS | CSV file specifying custom lat/lon regions to consider. | Specify custom regions (one per line) as ```NAME <MIN LAT>.<MAX LAT> <MIN LON>.<MAX LON>```. |
 | C | Form confidence intervals. | Includes confidence intervals on sample mean and standard deviation for a single experiment, and when two experiments are compared. See **On Confidence Intervals** for further details. |
