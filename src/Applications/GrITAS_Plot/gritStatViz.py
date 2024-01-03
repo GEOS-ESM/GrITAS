@@ -61,7 +61,7 @@ compExp  = zeros([])
 gritDict={'Control': None}; orderedGritKeys=['Control', 'Exp']
 for nx, exp in enumerate(SV.globalProps.experiments.members):
     # Use current experiment to initialize a Gritas instance
-    grit=Gritas(exp.pathToFile.replace('__ID__',exp.name),supportedStats=SV.globalProps.supportedStats)
+    grit=Gritas(exp.pathToFile,supportedStats=SV.globalProps.supportedStats)
     grit.fromGritas(SV.globalProps.obType,SV.globalProps.stats.confidence,'index')
 
     # Use first experiment to set 'allStats' and 'compExp' array dimensions
