@@ -213,8 +213,7 @@ class GritasFig:
         # Add annotations to figure if not None
         # -------------------------------------
         if annotation:
-            self.fig.suptitle('CTL: %s'%annotation[0], x=0.125, y=0.93, ha='left', fontsize=14)
-            self.ax.set_title('EXP: %s'%annotation[1], loc='left', fontsize=14)
+            self.ax.set_title('CTL: %s\nEXP: %s\n'%tuple(annotation), loc='left', fontsize=self.figTitleSize)
 
         self.ax.legend(loc='lower right')
 
@@ -407,7 +406,7 @@ class GritasFig:
                          size=13, ha='left', va="center",
                          bbox=dict(boxstyle="round", alpha=0.1, color='g'))
 
-        self.ax.set_title('EXP: %s\nCTL: %s\n'%tuple(annotation), loc='left', fontsize=self.figTitleSize)
+        self.ax.set_title('CTL: %s\nEXP: %s\n'%tuple(annotation), loc='left', fontsize=self.figTitleSize)
         self.fig.tight_layout()
 
     def commonFigSetup(self,allStats,units,instruments,flavor='None'):
