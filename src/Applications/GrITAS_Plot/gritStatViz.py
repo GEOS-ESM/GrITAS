@@ -61,7 +61,7 @@ compExp  = zeros([])
 gritDict={'Control': None}; orderedGritKeys=['Control', 'Exp']
 for nx, exp in enumerate(SV.globalProps.experiments.members):
     # Use current experiment to initialize a Gritas instance
-    grit=Gritas(exp.pathToFile.replace('__ID__',exp.name),supportedStats=SV.globalProps.supportedStats)
+    grit=Gritas(exp.pathToFile,supportedStats=SV.globalProps.supportedStats)
     grit.fromGritas(SV.globalProps.obType,SV.globalProps.stats.confidence,'index')
 
     # Use first experiment to set 'allStats' and 'compExp' array dimensions
@@ -130,21 +130,6 @@ for nr,region in enumerate(SV.globalProps.plotParams.regions):
     # Proceed to plot with two experiments
     # ---------------------------------------------------------------------------------------
     if numExp == 2:
-        # Grab indicies of mean and stdv - in case user changes order in yaml
-        meanIdx = np.argmax([s=='mean' for s in SV.globalProps.stats.measures])
-        stdvIdx = np.argmax([s=='stdv' for s in SV.globalProps.stats.measures])
-
-        # cntlMean = allStats[:,0,nr,meanIdx]
-        # cntlStdv = allStats[:,0,nr,stdvIdx]
-
-        # Define index along which monthly comparison will be computed
-        if SV.globalProps.plotParams.compareVia == 'ratio':
-            compIdx = stdvIdx
-        elif SV.globalProps.plotParams.compareVia == 'difference':
-            compIdx = meanIdx
-        else:
-            compIdx = 0
-
         # Convenience
         nicknames = [exp.nickname for exp in SV.globalProps.experiments.members]
 
@@ -154,7 +139,7 @@ for nr,region in enumerate(SV.globalProps.plotParams.regions):
                                      SV.globalProps.plotParams.simpleBars,\
                                      yrs=years,mnths=months)
             gritDict['Exp'].monthlyComp(SV.globalProps.plotParams.compareVia,
-                                        allStats[:,1,nr,compIdx],allStats[:,0,nr,compIdx],
+                                        allStats[:,1,nr],allStats[:,0,nr],
                                         stats=SV.globalProps.stats,
                                         instruments=SV.globalProps.instruments,annotation=nicknames)
         else:

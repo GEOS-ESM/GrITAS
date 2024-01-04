@@ -163,7 +163,7 @@ class GritasFig:
             barCenter = arange(len(statAllLvls))-1.0/5+ns*self.bar_width
 
             # Set properties of errorbars
-            kwargs={'alpha': self.opacity,'color': stats.colors[ns],'label': stat,'error_kw': self.error_config}
+            kwargs={'alpha': self.opacity,'color': stats.colors[ns],'label': stat}#,'error_kw': self.error_config}
 
             # Confidence on monthlyStat
             # --------------------------
@@ -179,30 +179,41 @@ class GritasFig:
                 # Multiply by sample stdv., thus completing formation of CL
                 xerr*=allStats[:,1]
 
-            # Plot bars
-            self.ax.barh(barCenter, statAllLvls, self.bar_width, **kwargs)
-
-            # Toggle between simple or embelished bars
-            if self.simpleBars:
-                self.ax.errorbar(statAllLvls, barCenter, xerr=xerr, color=stats.colors[ns], capsize=5,ls='')
+            # New stuff
+            self.ax.plot(statAllLvls, barCenter, lw=1, color=kwargs['color'])
+            if stat == 'mean':
+                left = statAllLvls-xerr; right = statAllLvls+xerr
+            elif stat == 'stdv':
+                left = statAllLvls-xerr[0]; right = statAllLvls+xerr[1]
             else:
-                self.ax.vlines(statAllLvls,barCenter-0.6*self.bar_width,barCenter+0.6*self.bar_width,color='k')
-                if stat == 'mean':
-                    self.ax.barh(barCenter, xerr, self.bar_width,left=statAllLvls-xerr,color=stats.colors[ns],\
-                                 alpha=1.0,hatch='/////',edgecolor=stats.colors[ns])
-                    self.ax.barh(barCenter, xerr, self.bar_width,left=statAllLvls,color=stats.colors[ns],\
-                                 alpha=1.0,hatch='/////',edgecolor=stats.colors[ns])
-                else:
-                    self.ax.barh(barCenter, xerr[0], self.bar_width, left=statAllLvls-xerr[0],\
-                                 color=stats.colors[ns],alpha=1.0,hatch='/////',edgecolor=stats.colors[ns])
-                    self.ax.barh(barCenter, xerr[1], self.bar_width, left=statAllLvls, color=stats.colors[ns],\
-                                 alpha=1.0,hatch='/////',edgecolor=stats.colors[ns])
+                left, right = 0, 0
+#            left, right = statAllLvls-xerr, statAllLvls+xerr if stat == 'mean' else statAllLvls-xerr[0], statAllLvls+xerr[1]
+            self.ax.fill_betweenx(barCenter, left, right, **kwargs) #alpha=self.opacity,color=stats.colors[ns],label=stat)
+
+
+            # # Plot bars
+            # self.ax.barh(barCenter, statAllLvls, self.bar_width, **kwargs)
+
+            # # Toggle between simple or embelished bars
+            # if self.simpleBars:
+            #     self.ax.errorbar(statAllLvls, barCenter, xerr=xerr, color=stats.colors[ns], capsize=5,ls='')
+            # else:
+            #     self.ax.vlines(statAllLvls,barCenter-0.6*self.bar_width,barCenter+0.6*self.bar_width,color='k')
+            #     if stat == 'mean':
+            #         self.ax.barh(barCenter, xerr, self.bar_width,left=statAllLvls-xerr,color=stats.colors[ns],\
+            #                      alpha=1.0,hatch='/////',edgecolor=stats.colors[ns])
+            #         self.ax.barh(barCenter, xerr, self.bar_width,left=statAllLvls,color=stats.colors[ns],\
+            #                      alpha=1.0,hatch='/////',edgecolor=stats.colors[ns])
+            #     else:
+            #         self.ax.barh(barCenter, xerr[0], self.bar_width, left=statAllLvls-xerr[0],\
+            #                      color=stats.colors[ns],alpha=1.0,hatch='/////',edgecolor=stats.colors[ns])
+            #         self.ax.barh(barCenter, xerr[1], self.bar_width, left=statAllLvls, color=stats.colors[ns],\
+            #                      alpha=1.0,hatch='/////',edgecolor=stats.colors[ns])
 
         # Add annotations to figure if not None
         # -------------------------------------
         if annotation:
-            self.fig.suptitle('CTL: %s'%annotation[0], x=0.125, y=0.93, ha='left', fontsize=14)
-            self.ax.set_title('EXP: %s'%annotation[1], loc='left', fontsize=14)
+            self.ax.set_title('CTL: %s\nEXP: %s\n'%tuple(annotation), loc='left', fontsize=self.figTitleSize)
 
         self.ax.legend(loc='lower right')
 
@@ -276,8 +287,65 @@ class GritasFig:
 
         self.ax.axes.xaxis.set_major_locator(MultipleLocator(3))
         self.ax.axes.xaxis.set_minor_locator(MultipleLocator(1))
-        self.ax.set_xticklabels(yyyymm, minor=False, rotation=45)
+        self.ax.set_xticklabels(yyyymm, minor=False, rotation=45, fontsize=12)
         self.ax.vlines(self.ax.get_xticks(),self.ax.get_ylim()[0],self.ax.get_ylim()[1],color='darkgray',linestyle=':')
+
+    def _baseComp_(self,compareVia,expStats,cntlStats,stats,instruments,annotation):
+        allStats=100*(expStats/cntlStats) if compareVia == 'ratio' else expStats - cntlStats
+        # Capture minval/maxval
+        minval, maxval = self.commonFigSetup(allStats,stats.units,instruments,flavor=annotation)
+
+        # Convenience
+        midpnt = minval+0.5*(maxval-minval)
+        pos = arange(len(allStats))
+
+        # For the moment, we will only compare difference in means (blue) or ratio of stdv's (red)
+        ecolor = 'b' if compareVia == 'difference' else 'r'
+
+        # Include confidence levels
+        # --------------------------
+        if stats.confidence:
+            # xerr based on compareVia
+            xerr = self.studT if compareVia == 'difference' else [self.leftChi2,self.rightChi2]
+            # Multiply by sample stdv. of Exp, thus completing formation of CL
+            xerr*=expStats # this is okay, since this method is only called for ratio
+
+            if compareVia == 'difference':
+                self.ax.plot(zeros(len(allStats)), pos, color='k', lw=1, alpha=0.8)
+                self.ax.fill_betweenx(pos, allStats-xerr, allStats+xerr, color=ecolor, alpha=0.4)
+            if compareVia == 'ratio':
+                refline=midpnt*ones(len(allStats))
+                self.ax.plot(refline, pos, color='k', lw=1, alpha=0.8)
+                self.ax.fill_betweenx(pos, allStats-xerr[0], allStats+xerr[-1], color=ecolor, alpha=0.4)
+
+            # Plot errorbars regardless of compareVia
+            self.ax.plot(allStats, pos, lw=2, color=ecolor)
+        else:
+            self.ax.plot(allStats, pos, lw=2, color=ecolor)
+
+        return minval, maxval
+
+    def _overlayComp_(self,ax,compareVia,expStats,cntlStats,stats,instruments,annotation=''):
+        if compareVia != 'difference':
+            raise ValueError("Expecting compareVia = 'difference' in overlaid plot!")
+        overlayStats=expStats-cntlStats
+
+        ax2_min, ax2_max = np.nanmin(overlayStats), np.nanmax(overlayStats)
+
+        ax.set_xlim([-1.05*max(np.abs([ax2_min,ax2_max])),1.05*max(np.abs([ax2_min,ax2_max]))])
+        ax.set_xlabel(r'$<x_{EXP}>-<x_{CTL}>$',fontsize=18)
+
+        for label in ax.get_xticklabels():
+            label.set_fontsize(self.maxLabelSize)
+            label.set_fontweight('bold')
+
+        if stats.confidence:
+            xerr = self.studT
+            xerr*=expStats
+            ax.plot(overlayStats,arange(len(overlayStats)),'b')
+            ax.fill_betweenx(arange(len(overlayStats)), overlayStats-xerr, overlayStats+xerr, color='b', alpha=0.4)
+        else:
+            ax.plot(overlayStats,arange(len(overlayStats)),'b')
 
     def monthlyComp(self,compareVia,expStats,cntlStats,stats=None,instruments=[],annotation=''):
         '''
@@ -307,44 +375,26 @@ class GritasFig:
         -------
         None
         '''
-        # Modify allStats based on how the two experiments should be compared
-        allStats=100*(expStats/cntlStats) if compareVia == 'ratio' else expStats - cntlStats
-
         self.typ='monthly'
-        # Capture minval/maxval
-        minval, maxval = self.commonFigSetup(allStats,stats.units,instruments,flavor=annotation)
 
-        # Convenience
-        midpnt = minval+0.5*(maxval-minval)
-        pos = arange(len(allStats))
+        # Grab indicies of mean and stdv - in case user changes order in yaml
+        meanIdx = np.argmax([s=='mean' for s in stats.measures])
+        stdvIdx = np.argmax([s=='stdv' for s in stats.measures])
 
-        # For the moment, we will only compare difference in means (blue) or ratio of stdv's (red)
-        ecolor = 'b' if compareVia == 'difference' else 'r'
-
-        # Include confidence levels
-        # --------------------------
-        if stats.confidence:
-            # xerr based on compareVia
-            xerr = self.studT if compareVia == 'difference' else [self.leftChi2,self.rightChi2]
-            # Multiply by sample stdv. of Exp, thus completing formation of CL
-            xerr*=expStats # this is okay, since this method is only called for ratio
-
-            if compareVia == 'difference':
-                self.ax.plot(zeros(len(allStats)), pos, color='k', lw=1, alpha=0.8)
-            if compareVia == 'ratio':
-                refline=midpnt*ones(len(allStats))
-                self.ax.plot(refline, pos, color='k', lw=1, alpha=0.8)
-
-            # Plot errorbars regardless of compareVia
-            self.ax.plot(allStats, pos, lw=2, color=ecolor)
-            self.ax.fill_betweenx(pos, allStats-xerr[0], allStats+xerr[-1], color=ecolor, alpha=0.4)
+        minval, maxval = 0.0, 0.0
+        if compareVia == 'ratio+difference' or compareVia == 'difference+ratio':
+            minval, maxval = self._baseComp_('ratio',expStats[:,stdvIdx],
+                                             cntlStats[:,stdvIdx],stats,instruments,annotation)
+            self._overlayComp_(self.ax.twiny(),'difference',expStats[:,meanIdx],
+                               cntlStats[:,meanIdx],stats=stats,instruments=instruments,annotation=annotation)
+        elif compareVia == 'ratio':
+            minval, maxval = self._baseComp_(compareVia,expStats[:,stdvIdx],
+                                             cntlStats[:,stdvIdx],stats,instruments,annotation)
+        elif compareVia == 'difference':
+            minval, maxval = self._baseComp_(compareVia,expStats[:,meanIdx],
+                                             cntlStats[:,meanIdx],stats,instruments,annotation)
         else:
-            self.ax.plot(allStats,pos)
-
-        # Labeling of figure
-        # -------------------
-        self.fig.suptitle('CTL: %s'%annotation[0], x=0.125, y=0.93, ha='left', fontsize=14)
-        self.ax.set_title('EXP: %s'%annotation[1], loc='left', fontsize=14)
+            raise Exception("Error! Should not get here!")
 
         # Plot deterioration/improvement boxes #midpnt+0.0195*midpnt
         self.ax.annotate('Deterioration', xy=(maxval-0.0195*(maxval-minval),0.5), xycoords='data',
@@ -355,6 +405,9 @@ class GritasFig:
                          xytext=(0,0), textcoords='offset points',
                          size=13, ha='left', va="center",
                          bbox=dict(boxstyle="round", alpha=0.1, color='g'))
+
+        self.ax.set_title('CTL: %s\nEXP: %s\n'%tuple(annotation), loc='left', fontsize=self.figTitleSize)
+        self.fig.tight_layout()
 
     def commonFigSetup(self,allStats,units,instruments,flavor='None'):
         '''
@@ -380,21 +433,24 @@ class GritasFig:
            min, max range of figure; set by instruments[obType]
         '''
         self.figName='%s_%s_%s_%s_%s.%s'%(self.prefix,self.obType,self.region.name,self.typ,self.yyyymm,self.figType)
-        self.fig = plt.figure(figsize=(8,10)) if self.typ == 'monthly' else plt.figure(figsize=(10,10))
+        self.fig = plt.figure(figsize=(10,12)) if self.typ == 'monthly' else plt.figure(figsize=(10,10))
         self.fig.tight_layout(pad=1.0)
+        self.figTitleSize=16
         self.ax=self.fig.gca()
         self.ax.set_facecolor('#CECECE')
         self.minLabelSize=4
-        self.maxLabelSize=7
-        self.opacity=0.5
+        self.maxLabelSize=12
+        self.opacity=0.4
         self.bar_width=0.4
         self.error_config = {'ecolor': '0.3'}
         self.ax.margins(y=0)
 
+        # Fine tune xtick labels
         for label in self.ax.get_xticklabels():
             label.set_fontsize(self.maxLabelSize)
             label.set_fontweight('bold')
 
+        # Fine tune ytick labels
         yticks = range(0,self.getDim('lev'))
         self.ax.margins(y=0)
         for label in self.ax.get_yticklabels():
@@ -403,22 +459,24 @@ class GritasFig:
 
         vunits = instruments[self.obType].vertUnits
         ylabel='Pressure (%s)'%vunits if vunits == 'hPa' else 'Channel Index'
-        xlabel= '(x %s)' % str(1/self.scale)
+        # xlabel= '(x %s)' % str(1/self.scale)
+        xlabel='(%sx)'%(1.0/self.scale)
         if units != "1":
-            xlabel = units if units == "%" else xlabel + ' (%s' % units + ')'
-        self.ax.set_xlabel(xlabel,fontsize=12)
-        self.ax.set_ylabel(ylabel,fontsize=12)
+            xlabel = units+r'$\left(\sigma_{EXP}/\sigma_{CTL}\right)$' if units == "%" else xlabel + ' (%s' % units + ')'
+        self.ax.set_xlabel(xlabel,fontsize=18)
+        self.ax.set_ylabel(ylabel,fontsize=18)
         self.ax.set_yticks(yticks)
         self.ax.set_yticklabels(int32(self.loc['lev'][yticks]), minor=False, rotation=0)
 
         prettyTimeWindow = '%i/%i'%(self.mnths[0],self.yrs[0])
         if len(self.mnths) > 1: prettyTimeWindow += ' - %i/%i'%(self.mnths[-1],self.yrs[-1])
 
-        self.ax.set_title('%s\nTime Window: %s'%(self.obType.upper(),prettyTimeWindow))
+        self.ax.set_title('%s\nTime Window: %s\n'%(self.obType.upper(),prettyTimeWindow), fontsize=self.figTitleSize, pad=40)
+        self.ax.set_title('%s\n'%self.region, loc='right', fontsize=self.figTitleSize, pad=40)
 
         # Include instrument hame and lat/lon coordinates on figure
         _x0,_y0,_width,_height=self.ax.get_position().bounds
-        self.fig.text(_x0+_width,_y0+_height+0.005,'%s'%self.region,ha='right',fontsize=14)
+        # self.fig.text(_x0+_width,_y0+_height+0.005,'%s'%self.region,ha='right',fontsize=14)
 
         minval, maxval = float(instruments[self.obType]._min), float(instruments[self.obType]._max)
         self.ax.set_xlim([minval,maxval]) if minval != maxval else self.ax.set_xlim([amin(allStats),\
