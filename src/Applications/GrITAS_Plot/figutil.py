@@ -73,6 +73,9 @@ class GritasFig:
     simpleBars : bool
        Embelished confidence intervals
 
+    includeObsCounts : bool
+       Whether a side panel should be included to show observation counts per level/channel
+
     typ : str
        Shorthand for type of figure that will be produced (e.g., 'monthly' or 'tseries')
 
@@ -87,8 +90,11 @@ class GritasFig:
 
     yyyymm : str
        Time window as a string, formatted as YYYYMM-YYYYMM
+
+    overlaidAxis : None
+       Member variable to hold reference to a twiny() instance, should it exist
     '''
-    def __init__(self,prefix,obType,region,scale,simpleBars,yrs=None,mnths=None):
+    def __init__(self,prefix,obType,region,scale,simpleBars,includeObsCounts,yrs=None,mnths=None):
         '''
         Intialize a GritasFig instance
 
@@ -109,6 +115,9 @@ class GritasFig:
         simpleBars : bool
            Embelished confidence intervals
 
+        includeObsCounts : bool
+           Whether a side panel should be included to show observation counts per level/channel
+
         yrs : list
            List of years in time window
 
@@ -120,6 +129,7 @@ class GritasFig:
         self.region=region
         self.scale=scale
         self.simpleBars=simpleBars
+        self.includeObsCounts=includeObsCounts
         self.typ='invalid'
         self.figType='png'
         self.yrs=yrs
@@ -127,6 +137,7 @@ class GritasFig:
         self.yyyymm='%s%s'%(self.yrs[0],str(self.mnths[0]).rjust(2,'0'))
         if len(self.yrs) > 1 or len(self.mnths) > 1:
             self.yyyymm += '-%s%s'%(self.yrs[-1],str(self.mnths[-1]).rjust(2,'0'))
+        self.overlaidAxis=None
 
     def monthlyStat(self,allStats,stats=None,instruments=[],annotation=None):
         '''
@@ -347,6 +358,8 @@ class GritasFig:
         else:
             ax.plot(overlayStats,arange(len(overlayStats)),'b')
 
+        self.overlaidAxis = ax
+
     def monthlyComp(self,compareVia,expStats,cntlStats,stats=None,instruments=[],annotation=''):
         '''
         Form a monthly comparison between two experiments according to specified scheme
@@ -406,8 +419,14 @@ class GritasFig:
                          size=13, ha='left', va="center",
                          bbox=dict(boxstyle="round", alpha=0.1, color='g'))
 
-        self.ax.set_title('CTL: %s\nEXP: %s\n'%tuple(annotation), loc='left', fontsize=self.figTitleSize)
-        self.fig.tight_layout()
+        self.ax.set_title('CTL: %s\nEXP: %s\n'%tuple(annotation), loc='left', fontsize=self.figTitleSize, pad=4)
+
+        # Match self.ax_counts twiny x-axis labels to that of self.overlaidAxis x-axis labels
+        if self.includeObsCounts:
+            _ax_counts_twin_=self.ax_counts.twiny()
+            _ax_counts_twin_.set_xlabel(self.overlaidAxis.get_xlabel(),fontsize=18,fontweight='bold')
+            _ax_counts_twin_.set_xticklabels(np.arange(3),fontsize=self.maxLabelSize,fontweight='bold')
+            _ax_counts_twin_.set_axis_off()
 
     def commonFigSetup(self,allStats,units,instruments,flavor='None'):
         '''
@@ -433,11 +452,13 @@ class GritasFig:
            min, max range of figure; set by instruments[obType]
         '''
         self.figName='%s_%s_%s_%s_%s.%s'%(self.prefix,self.obType,self.region.name,self.typ,self.yyyymm,self.figType)
-        self.fig = plt.figure(figsize=(10,12)) if self.typ == 'monthly' else plt.figure(figsize=(10,10))
-        self.fig.tight_layout(pad=1.0)
+
+        if self.includeObsCounts:
+            self.fig, [self.ax, self.ax_counts] = plt.subplots(1,2, sharey=True, figsize=(9,10), gridspec_kw={'width_ratios' :[0.75,0.25]})
+        else:
+            self.fig, self.ax = plt.subplots(1,1, figsize=(9,10))
+
         self.figTitleSize=16
-        self.ax=self.fig.gca()
-        self.ax.set_facecolor('#CECECE')
         self.minLabelSize=4
         self.maxLabelSize=12
         self.opacity=0.4
@@ -445,25 +466,27 @@ class GritasFig:
         self.error_config = {'ecolor': '0.3'}
         self.ax.margins(y=0)
 
-        # Fine tune xtick labels
-        for label in self.ax.get_xticklabels():
-            label.set_fontsize(self.maxLabelSize)
-            label.set_fontweight('bold')
+        # self.ax=self.fig.gca()
+        for ax in [self.ax, self.ax_counts] if self.includeObsCounts else [self.ax]:
+            ax.set_facecolor('#CECECE')
+            # Fine tune xtick labels
+            for label in ax.get_xticklabels():
+                label.set_fontsize(self.maxLabelSize)
+                label.set_fontweight('bold')
 
         # Fine tune ytick labels
         yticks = range(0,self.getDim('lev'))
-        self.ax.margins(y=0)
         for label in self.ax.get_yticklabels():
             label.set_fontsize(self.maxLabelSize) if self.getDim('lev') <= 30 else label.set_fontsize(self.minLabelSize)
             label.set_fontweight('bold')
 
         vunits = instruments[self.obType].vertUnits
         ylabel='Pressure (%s)'%vunits if vunits == 'hPa' else 'Channel Index'
-        # xlabel= '(x %s)' % str(1/self.scale)
-        xlabel='(%sx)'%(1.0/self.scale)
+        xlabels=['(x %s)'%self.scale]
         if units != "1":
-            xlabel = units+r'$\left(\sigma_{EXP}/\sigma_{CTL}\right)$' if units == "%" else xlabel + ' (%s' % units + ')'
-        self.ax.set_xlabel(xlabel,fontsize=18)
+            xlabels[0] = units+r'$\left(\sigma_{EXP}/\sigma_{CTL}\right)$' if units == "%" else xlabels[0] + ' (%s' % units + ')'
+
+        self.ax.set_xlabel(xlabels[0],fontsize=18)
         self.ax.set_ylabel(ylabel,fontsize=18)
         self.ax.set_yticks(yticks)
         self.ax.set_yticklabels(int32(self.loc['lev'][yticks]), minor=False, rotation=0)
@@ -471,17 +494,25 @@ class GritasFig:
         prettyTimeWindow = '%i/%i'%(self.mnths[0],self.yrs[0])
         if len(self.mnths) > 1: prettyTimeWindow += ' - %i/%i'%(self.mnths[-1],self.yrs[-1])
 
-        self.ax.set_title('%s\nTime Window: %s\n'%(self.obType.upper(),prettyTimeWindow), fontsize=self.figTitleSize, pad=40)
-        self.ax.set_title('%s\n'%self.region, loc='right', fontsize=self.figTitleSize, pad=40)
+        # Always make temporal window centered on figure
+        self.fig.suptitle('%s\nTime Window: %s\n'%(self.obType.upper(),prettyTimeWindow), fontsize=self.figTitleSize)
+
+        # Conditional to handle which axis is used to include region information
+        if self.includeObsCounts:
+            xlabels.append('Obs Count')
+            self.ax_counts.set_xlabel(xlabels[1],fontsize=18)
+            self.ax_counts.set_title('%s\n'%self.region, loc='right', fontsize=self.figTitleSize)
+        else:
+            self.ax.set_title('%s\n'%self.region, loc='right', fontsize=self.figTitleSize, pad=4)
+
 
         # Include instrument hame and lat/lon coordinates on figure
         _x0,_y0,_width,_height=self.ax.get_position().bounds
-        # self.fig.text(_x0+_width,_y0+_height+0.005,'%s'%self.region,ha='right',fontsize=14)
 
         minval, maxval = float(instruments[self.obType]._min), float(instruments[self.obType]._max)
         self.ax.set_xlim([minval,maxval]) if minval != maxval else self.ax.set_xlim([amin(allStats),\
                                                                                      amax(allStats)])
-
+        self.fig.tight_layout()
         return minval, maxval
 
     def saveFig(self):
@@ -848,7 +879,7 @@ class Gritas(GritasVars,GritasFig):
         self.rightChi2 = rightChi2
         self.studT = studT
 
-    def plotInit(self,prefix,obType,region,scale,simpleBars,yrs,mnths):
+    def plotInit(self,prefix,obType,region,scale,simpleBars,includeObsCounts,yrs,mnths):
         '''
         Initialize a figure
 
@@ -869,6 +900,9 @@ class Gritas(GritasVars,GritasFig):
         simpleBars : bool
            Embelished confidence intervals
 
+        includeObsCounts : bool
+           Observation counts are among desired stats to show
+
         yrs : list
            List of years in time window
 
@@ -879,5 +913,5 @@ class Gritas(GritasVars,GritasFig):
         -------
         None
         '''
-        GritasFig.__init__(self,prefix,obType,region,scale,simpleBars,yrs,mnths)
+        GritasFig.__init__(self,prefix,obType,region,scale,simpleBars,includeObsCounts,yrs,mnths)
         self.figExist=True
