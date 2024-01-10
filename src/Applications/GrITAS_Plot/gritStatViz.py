@@ -112,6 +112,7 @@ for nr,region in enumerate(SV.globalProps.plotParams.regions):
     if numExp == 1:
         gritDict['Control'].plotInit(SV.globalProps.experiments.members[0].nickname,SV.globalProps.obType,\
                                      SV.universe[region],SV.globalProps.stats.scale,\
+                                     SV.globalProps.plotParams.linePlot,\
                                      SV.globalProps.plotParams.simpleBars,\
                                      'sum' in SV.globalProps.stats.measures,yrs=years,mnths=months)
         if SV.globalProps.plotParams.monthly:
@@ -137,10 +138,11 @@ for nr,region in enumerate(SV.globalProps.plotParams.regions):
         if SV.globalProps.plotParams.monthly:
             gritDict['Exp'].plotInit(nicknames,SV.globalProps.obType,\
                                      SV.universe[region],SV.globalProps.stats.scale,\
+                                     SV.globalProps.plotParams.linePlot,\
                                      SV.globalProps.plotParams.simpleBars,\
                                      'sum' in SV.globalProps.stats.measures,yrs=years,mnths=months)
             gritDict['Exp'].monthlyComp(SV.globalProps.plotParams.compareVia,
-                                        allStats[:,1,nr],allStats[:,0,nr],
+                                        allStats[:,1,nr,:],allStats[:,0,nr,:],
                                         stats=SV.globalProps.stats,
                                         instruments=SV.globalProps.instruments,annotation=nicknames)
         else:

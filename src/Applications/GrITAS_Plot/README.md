@@ -37,6 +37,8 @@ Options:
                         CSV file specifying user defined lat/lon regions to
                         consider - ignored if empty (default = )
   --C                   Form confidence intervals
+  --L                   Plot stats via a line plot; defaults to bars if
+                        omitted
   --M                   Form a monthly plot of statistics
   --T                   Form a time series plot
 ```
@@ -54,6 +56,7 @@ Options:
 | TSERIESVAR | View time series of this statistic. | Acceptable variables: mean, stdv, sum. Option is ignored if `options.T` is not provided at command line. |
 | USRDEFREGIONS | CSV file specifying custom lat/lon regions to consider. | Specify custom regions (one per line) as ```NAME <MIN LAT>.<MAX LAT> <MIN LON>.<MAX LON>```. |
 | C | Form confidence intervals. | Includes confidence intervals on sample mean and standard deviation for a single experiment, and when two experiments are compared. See **On Confidence Intervals** for further details. |
+| L | Plot statistics using a line plot. | When omitted, statistics are visualized using a horizontal bar plot. |
 | M | Form a monthly plot of statistics. | Visualize statistics for one or two experiments per month across time window specifed by `DATE`. Should two experiments be passed, a monthly plot of statistics can only proceed by specifying how the two experiments are to be compared (see `COMPVIA`). |
 | T | Form a time series plot. | Visualize the time evolution of an observing system's `TSERIESVAR` statistic across time window specified by `DATE`. Only allowed for a single experiment. |
 

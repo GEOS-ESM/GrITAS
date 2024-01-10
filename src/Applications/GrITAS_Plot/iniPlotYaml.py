@@ -37,6 +37,8 @@ parser.add_option('--usrDefRegions',type=str,default='',
                   help='CSV file specifying user defined lat/lon regions to consider - ignored if empty (default = '')')
 parser.add_option("--C", action='store_true', default=False,
                   help='Form confidence intervals')
+parser.add_option("--L", action='store_true', default=False,
+                  help='Plot stats via a line plot; defaults to bars if omitted')
 parser.add_option("--M", action='store_true', default=False,
                   help='Form a monthly plot of statistics')
 parser.add_option("--T", action='store_true', default=False,
@@ -98,7 +100,7 @@ for e in options.expIDs.split('/'):
 # Modify plot params
 # ------------------
 plotParams = PlotParams(regions=[r.name for r in regions],timeSeries=options.T,timeSeriesVar=options.tSeriesVar,
-                        monthly=options.M,compVia=options.compVia)
+                        monthly=options.M,compVia=options.compVia,linePlot=options.L)
 
 # Construct a GlobalProps instance
 # --------------------------------
