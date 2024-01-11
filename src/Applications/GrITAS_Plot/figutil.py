@@ -7,6 +7,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from pylab import *
 from datetime import timedelta
+from numpy import nan_to_num as nn
 
 # Global settings for matplotlib
 # ------------------------------
@@ -70,6 +71,9 @@ class GritasFig:
     scale : float
        Rescale statistics
 
+    linePlot : bool
+           Plot stats via a line plot; bars used otherwise
+
     simpleBars : bool
        Embelished confidence intervals
 
@@ -94,7 +98,7 @@ class GritasFig:
     overlaidAxis : None
        Member variable to hold reference to a twiny() instance, should it exist
     '''
-    def __init__(self,prefix,obType,region,scale,simpleBars,includeObsCounts,yrs=None,mnths=None):
+    def __init__(self,prefix,obType,region,scale,linePlot,simpleBars,includeObsCounts,yrs=None,mnths=None):
         '''
         Intialize a GritasFig instance
 
@@ -112,6 +116,9 @@ class GritasFig:
         scale : float
            Rescale statistics
 
+        linePlot : bool
+           Plot stats via a line plot; bars used otherwise
+
         simpleBars : bool
            Embelished confidence intervals
 
@@ -128,6 +135,7 @@ class GritasFig:
         self.obType=obType
         self.region=region
         self.scale=scale
+        self.linePlot=linePlot
         self.simpleBars=simpleBars
         self.includeObsCounts=includeObsCounts
         self.typ='invalid'
@@ -164,9 +172,9 @@ class GritasFig:
         self.typ='monthly'
         self.commonFigSetup(allStats,stats.units,instruments)
 
-        # Iterate over all supported stats, skipping if not desired
+        # Iterate over all supported stats, skipping if not desired or stat is 'sum' ('sum' handled separately)
         for ns, stat in enumerate(self.supportedStats):
-            if stat not in stats.measures:
+            if stat not in stats.measures or stat == 'sum':
                 continue
             statAllLvls=allStats[:,ns]
 
@@ -190,43 +198,51 @@ class GritasFig:
                 # Multiply by sample stdv., thus completing formation of CL
                 xerr*=allStats[:,1]
 
-            # New stuff
-            self.ax.plot(statAllLvls, barCenter, lw=1, color=kwargs['color'])
+            # Set the left/right error based on stat considered
             if stat == 'mean':
                 left = statAllLvls-xerr; right = statAllLvls+xerr
             elif stat == 'stdv':
                 left = statAllLvls-xerr[0]; right = statAllLvls+xerr[1]
+
+            # Toggle between plotting stats with bars or line plots
+            if self.linePlot:
+                self.ax.plot(statAllLvls, barCenter, lw=1, color=kwargs['color'])
+                self.ax.fill_betweenx(barCenter, left, right, **kwargs)
             else:
-                left, right = 0, 0
-#            left, right = statAllLvls-xerr, statAllLvls+xerr if stat == 'mean' else statAllLvls-xerr[0], statAllLvls+xerr[1]
-            self.ax.fill_betweenx(barCenter, left, right, **kwargs) #alpha=self.opacity,color=stats.colors[ns],label=stat)
+            # Plot bars
+                self.ax.barh(barCenter, statAllLvls, self.bar_width, **kwargs)
 
-
-            # # Plot bars
-            # self.ax.barh(barCenter, statAllLvls, self.bar_width, **kwargs)
-
-            # # Toggle between simple or embelished bars
-            # if self.simpleBars:
-            #     self.ax.errorbar(statAllLvls, barCenter, xerr=xerr, color=stats.colors[ns], capsize=5,ls='')
-            # else:
-            #     self.ax.vlines(statAllLvls,barCenter-0.6*self.bar_width,barCenter+0.6*self.bar_width,color='k')
-            #     if stat == 'mean':
-            #         self.ax.barh(barCenter, xerr, self.bar_width,left=statAllLvls-xerr,color=stats.colors[ns],\
-            #                      alpha=1.0,hatch='/////',edgecolor=stats.colors[ns])
-            #         self.ax.barh(barCenter, xerr, self.bar_width,left=statAllLvls,color=stats.colors[ns],\
-            #                      alpha=1.0,hatch='/////',edgecolor=stats.colors[ns])
-            #     else:
-            #         self.ax.barh(barCenter, xerr[0], self.bar_width, left=statAllLvls-xerr[0],\
-            #                      color=stats.colors[ns],alpha=1.0,hatch='/////',edgecolor=stats.colors[ns])
-            #         self.ax.barh(barCenter, xerr[1], self.bar_width, left=statAllLvls, color=stats.colors[ns],\
-            #                      alpha=1.0,hatch='/////',edgecolor=stats.colors[ns])
+                # Toggle between simple or embelished bars
+                if self.simpleBars:
+                    self.ax.errorbar(statAllLvls, barCenter, xerr=xerr, color=stats.colors[ns], capsize=5,ls='')
+                else:
+                    if stat == 'mean':
+                        # Presence of NaNs leads to omissions when barh is passed entire stat/err arrays - iterate instead
+                        for _n in range(len(barCenter)):
+                            self.ax.barh(barCenter[_n], 2*xerr[_n], self.bar_width, left=statAllLvls[_n]-xerr[_n],\
+                                         color=stats.colors[ns],alpha=0.7,hatch='/////',edgecolor=stats.colors[ns])
+                    else:
+                        # Presence of NaNs leads to omissions when barh is passed entire stat/err arrays - iterate instead
+                        for _n in range(len(barCenter)):
+                            self.ax.barh(barCenter[_n], xerr[0,_n], self.bar_width, left=left[_n],\
+                                         color=stats.colors[ns],alpha=0.7,hatch='/////',edgecolor=stats.colors[ns])
+                            self.ax.barh(barCenter[_n], xerr[1,_n], self.bar_width, left=statAllLvls[_n],\
+                                         color=stats.colors[ns],alpha=0.7,hatch='/////',edgecolor=stats.colors[ns])
 
         # Add annotations to figure if not None
         # -------------------------------------
         if annotation:
             self.ax.set_title('CTL: %s\nEXP: %s\n'%tuple(annotation), loc='left', fontsize=self.figTitleSize)
 
+        # Include observation counts if self.includeObsCounts is True
+        # -----------------------------------------------------------
+        if self.includeObsCounts:
+            self.ax_counts.plot(allStats[:,2],arange(len(allStats)),color='g')
+
         self.ax.legend(loc='lower right')
+
+        # Reset yticks
+        self.ax.set_yticks(range(0,self.getDim('lev')))
 
     def tSeries(self,allStats,stats=None,instruments=[],flavor='None'):
         '''
@@ -390,9 +406,10 @@ class GritasFig:
         '''
         self.typ='monthly'
 
-        # Grab indicies of mean and stdv - in case user changes order in yaml
+        # Grab indicies of mean, stdv, sum - in case user changes order in yaml
         meanIdx = np.argmax([s=='mean' for s in stats.measures])
         stdvIdx = np.argmax([s=='stdv' for s in stats.measures])
+        cntsIdx = np.argmax([s=='sum' for s in stats.measures])
 
         minval, maxval = 0.0, 0.0
         if compareVia == 'ratio+difference' or compareVia == 'difference+ratio':
@@ -427,6 +444,16 @@ class GritasFig:
             _ax_counts_twin_.set_xlabel(self.overlaidAxis.get_xlabel(),fontsize=18,fontweight='bold')
             _ax_counts_twin_.set_xticklabels(np.arange(3),fontsize=self.maxLabelSize,fontweight='bold')
             _ax_counts_twin_.set_axis_off()
+
+            ratioCnts = 100*expStats[:,cntsIdx]/cntlStats[:,cntsIdx]
+            self.ax_counts.plot(ratioCnts,arange(len(ratioCnts)),color='g')
+            self.ax_counts.plot(100*ones(len(ratioCnts)), arange(len(ratioCnts)), color='k', lw=1, alpha=0.8)
+            self.ax_counts.xaxis.set_major_locator(MaxNLocator(3))
+            self.ax_counts.set_xticks([100-0.001*np.nanmax(ratioCnts),100,100+0.001*np.nanmax(ratioCnts)])
+            self.ax_counts.set_xlabel(r'$\%(N^{Obs}_{EXP}/N^{Obs}_{CTL})$',fontsize=18)
+
+            # Reset yticks
+            self.ax_counts.set_yticks(range(0,self.getDim('lev')))
 
     def commonFigSetup(self,allStats,units,instruments,flavor='None'):
         '''
@@ -466,7 +493,6 @@ class GritasFig:
         self.error_config = {'ecolor': '0.3'}
         self.ax.margins(y=0)
 
-        # self.ax=self.fig.gca()
         for ax in [self.ax, self.ax_counts] if self.includeObsCounts else [self.ax]:
             ax.set_facecolor('#CECECE')
             # Fine tune xtick labels
@@ -812,8 +838,12 @@ class Gritas(GritasVars,GritasFig):
 
         # Select the correct member variable based on 'stat'
         var=None
-        if stat == 'sum' or stat == 'mean': var = self.mean
-        if stat == 'stdv':                  var = self.stdv
+        # if stat == 'sum' or stat == 'mean': var = self.mean
+        # if stat == 'stdv':                  var = self.stdv
+
+        if stat == 'sum': var = self.nobs
+        if stat == 'mean': var = self.mean
+        if stat == 'stdv': var = self.stdv
 
         # Slice the member variable
         var=self.sliceVar(var,levSlice,latSlice,lonSlice)
@@ -879,7 +909,7 @@ class Gritas(GritasVars,GritasFig):
         self.rightChi2 = rightChi2
         self.studT = studT
 
-    def plotInit(self,prefix,obType,region,scale,simpleBars,includeObsCounts,yrs,mnths):
+    def plotInit(self,prefix,obType,region,scale,linePlot,simpleBars,includeObsCounts,yrs,mnths):
         '''
         Initialize a figure
 
@@ -897,6 +927,9 @@ class Gritas(GritasVars,GritasFig):
         scale : float
            Rescale statistics
 
+        linePlot : bool
+           Plot stats via a line plot; bars used otherwise
+
         simpleBars : bool
            Embelished confidence intervals
 
@@ -913,5 +946,5 @@ class Gritas(GritasVars,GritasFig):
         -------
         None
         '''
-        GritasFig.__init__(self,prefix,obType,region,scale,simpleBars,includeObsCounts,yrs,mnths)
+        GritasFig.__init__(self,prefix,obType,region,scale,linePlot,simpleBars,includeObsCounts,yrs,mnths)
         self.figExist=True
