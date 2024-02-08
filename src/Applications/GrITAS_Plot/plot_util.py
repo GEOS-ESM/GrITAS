@@ -518,6 +518,9 @@ class PlotParams(Serializer):
     compareVia : str
        When two experiments are considered, compare them according to scheme
 
+    linePlot : bool
+           Plot stats via a line plot; bars used otherwise
+
     simpleBars : bool
        Embelished confidence intervals
 
@@ -529,7 +532,7 @@ class PlotParams(Serializer):
     fromYaml(self,yamlTop)
        Sets PlotParams attributes from yamlTop level in an open yaml input file
     '''
-    def __init__(self,regions=[],timeSeries=False,timeSeriesVar='',monthly=True,compVia='ratio'):
+    def __init__(self,regions=[],timeSeries=False,timeSeriesVar='',monthly=True,compVia='ratio',linePlot=True):
         '''
         Initialize a PlotParams instance
 
@@ -549,18 +552,23 @@ class PlotParams(Serializer):
 
         compVia : str
            When two experiments are considered, compare according to scheme (supported: 'ratio' and 'difference')
+
+        linePlot : bool
+           Plot stats via a line plot; bars used otherwise
         '''
         self.regions=regions
         self.timeSeries=timeSeries
         self.timeSeriesVar=timeSeriesVar
         self.monthly=monthly
         self.compareVia=compVia
+        self.linePlot=linePlot
         self.simpleBars=True
         self.form='png'
         Serializer.__init__(self,'plot params',
                             ('time series', self.timeSeries),
                             ('time series var', self.timeSeriesVar),
                             ('monthly', self.monthly),
+                            ('line plot', self.linePlot),
                             ('simple bars', self.simpleBars),
                             ('compare via', self.compareVia),
                             ('regions', self.regions),
@@ -600,6 +608,7 @@ class PlotParams(Serializer):
         self.timeSeries = yamlTop['time series']
         self.timeSeriesVar = yamlTop['time series var']
         self.monthly = yamlTop['monthly']
+        self.linePlot = yamlTop['line plot']
         self.simpleBars = yamlTop['simple bars']
         self.compareVia = yamlTop['compare via']
         self.regions = yamlTop['regions']
@@ -608,6 +617,7 @@ class PlotParams(Serializer):
                             ('time series', self.timeSeries),
                             ('time series var', self.timeSeriesVar),
                             ('monthly', self.monthly),
+                            ('line plot', self.linePlot),
                             ('simple bars', self.simpleBars),
                             ('compare via', self.compareVia),
                             ('regions', self.regions),
