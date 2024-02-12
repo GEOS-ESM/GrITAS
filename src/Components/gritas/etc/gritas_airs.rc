@@ -12,5 +12,5 @@ GrITAS*Vertical_Levels:  3 6 9 10 11 13 14 18 21 29 31 44 45 46 47 49 50 52 53 5
 # ----------------------
 GrITAS*List::
 #  kt    var name      kx's
-   40    airsaqua      49
+   40    airs          49
 ::

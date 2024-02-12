@@ -5,11 +5,11 @@
 
 # Vertical levels - Must decrease monotonically
 # ---------------------------------------------
-GrITAS*Vertical_Levels: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+GrITAS*Vertical_Levels: 1 2 3 4 5
 
 # User Defined Grid List
 # ----------------------
 GrITAS*List::
 #  kt    var name      kx's
-   40    amsua        315
+   40    mhs           827
 ::
