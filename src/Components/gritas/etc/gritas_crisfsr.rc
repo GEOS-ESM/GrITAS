@@ -12,7 +12,8 @@ GrITAS*Vertical_Levels:  22:41 43 44 46 47 49 50:62 64:69 71:74 76:79 85:89 91:9
 # ----------------------
 GrITAS*List::
 #  kt    var name      kx's
-   40    cris          940 960
+   40    crisfsrnpp    940
+   40    crisfsrn20    960
 ::
 
 # cris active channels                           m       01    02    03    04    05    06    07    08    09    10
