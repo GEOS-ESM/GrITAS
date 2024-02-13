@@ -4,6 +4,7 @@ import yaml
 import common
 import os, sys, optparse
 import pandas as pd
+import netCDF4 as nc4
 import defaults
 from plot_util import *
 from optparse import OptionValueError
@@ -82,9 +83,6 @@ regions=[Region(k,v['lon'],v['lat']) for k,v in defaults.regions.items() if k in
 # Bundle all regions focused on into a super set
 Universe=Collection('regions',regions)
 
-# Instantiate instruments
-Instruments = Collection('instruments',[defaults.instruments[options.instrument]])
-
 # Declare temporal window to investigate
 pandasDates = pd.date_range(start=options.date.split('/')[0],
                             end=options.date.split('/')[1],freq='D')
@@ -93,9 +91,28 @@ pandasDates = pd.date_range(start=options.date.split('/')[0],
 # -------------------------------
 experiments = Collection('experiments')
 for e in options.expIDs.split('/'):
-    experiments.append(Experiment(name=e,nickname=e,
-                                  pathToFile='%s/%s/oma/%s/%s_gritas.nc4'%
-                                  (os.getcwd(),e,options.date.replace('/','-'),options.instrument)))
+    # Form an Experiment instance
+    exp = Experiment(name=e,nickname=e,pathToFile='%s/%s/oma/%s/%s_gritas.nc4'%
+                     (os.getcwd(),e,options.date.replace('/','-'),options.instrument))
+    # Add instance to collection
+    experiments.append(exp)
+
+    # Use exp's pathToFile member variable to determine what instruments are present in netCDF file
+    _f = nc4.Dataset(exp.pathToFile,'r',format='NETCDF4')
+    _availInstruments = []
+
+    for key in [k for k in _f.variables.keys() if k not in ['lon', 'lat', 'lev', 'time']]:
+        if key in _availInstruments:
+            continue
+        else:
+            _availInstruments.append((key,_f.variables['lev'].units))
+
+#    print(sorted(_f.variables['lev']) == _f.variables['lev'])
+
+
+# Instantiate instruments
+# Instruments = Collection('instruments',[defaults.instruments[options.instrument]])
+Instruments = Collection('instruments',[Instrument(name,_min=90.0,_max=110.0,vertUnits=unit) for name,unit in _availInstruments])
 
 # Modify plot params
 # ------------------
