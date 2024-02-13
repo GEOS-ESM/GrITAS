@@ -17,7 +17,7 @@ GrITAS*Vertical_Levels: 1:431
 # ----------------------
 GrITAS*List::
 #  kt    var name      kx's
-   40    cris          940
+   40    crisfsr       940
 ::
 
 # CrIS 431 Channel Subset

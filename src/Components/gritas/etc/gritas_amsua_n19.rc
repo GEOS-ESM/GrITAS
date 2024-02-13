@@ -11,13 +11,5 @@ GrITAS*Vertical_Levels: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
 # ----------------------
 GrITAS*List::
 #  kt    var name      kx's
-#  40    amsua        300 314:319
-#  40    amsuan14     314
-#  40    amsuan15     315
-#  40    amsuan16     316
-#  40    amsuan17     317
-#  40    amsuan18     318
-   40    amsuan19     319
-#  40    amsuamta     325
-#  40    amsuaaqa     300
+   40    amsua        319
 ::
