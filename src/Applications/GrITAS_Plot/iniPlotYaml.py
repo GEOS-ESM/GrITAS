@@ -94,21 +94,13 @@ for e in options.expIDs.split('/'):
     # Form an Experiment instance
     exp = Experiment(name=e,nickname=e,pathToFile='%s/%s/oma/%s/%s_gritas.nc4'%
                      (os.getcwd(),e,options.date.replace('/','-'),options.instrument))
+
+    # Determine available instruments
+    print(exp.getInstruments())
+    _availInstruments = exp.getInstruments()
+
     # Add instance to collection
     experiments.append(exp)
-
-    # Use exp's pathToFile member variable to determine what instruments are present in netCDF file
-    _f = nc4.Dataset(exp.pathToFile,'r',format='NETCDF4')
-    _availInstruments = []
-
-    for key in [k for k in _f.variables.keys() if k not in ['lon', 'lat', 'lev', 'time']]:
-        if key in _availInstruments:
-            continue
-        else:
-            _availInstruments.append((key,_f.variables['lev'].units))
-
-#    print(sorted(_f.variables['lev']) == _f.variables['lev'])
-
 
 # Instantiate instruments
 # Instruments = Collection('instruments',[defaults.instruments[options.instrument]])

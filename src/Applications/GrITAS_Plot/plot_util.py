@@ -443,10 +443,16 @@ class Experiment(Serializer):
     pathToFile : str
        Absolute path of experiment netCDF file
 
+    availInstruments : list
+       List of names (str) of instruments contained in netCDF file pointed to by pathToFile
+
     Methods
     -------
     fromYaml(self,yamlTop,**kwargs)
        Sets Experiment attributes from yamlTop level in an open yaml input file
+
+    getInstruments(self)
+       Use pathToFile member variable to collect, and return to user, which instruments are present in netCDF file
     '''
     def __init__(self,name='Unspecified',nickname='Unspecified',pathToFile='./'):
         '''
@@ -465,6 +471,7 @@ class Experiment(Serializer):
         '''
         self.nickname=nickname
         self.pathToFile=pathToFile
+        self.availInstruments=[]
         Serializer.__init__(self,name,('nickname',self.nickname),('file name', self.pathToFile))
 
     def __repr__(self):
@@ -476,6 +483,24 @@ class Experiment(Serializer):
         str
         '''
         return 'Experiment instance "%s":\n\t nicknamed = %s\n\t path = %s\n'%(self.name,self.nickname,self.pathToFile)
+
+    def getInstruments(self):
+        '''
+        Use pathToFile member variable to collect, and return to user, which instruments are present in netCDF file
+
+        Returns
+        -------
+        list
+        '''
+        _f = nc4.Dataset(self.pathToFile,'r',format='NETCDF4')
+
+        for variable in [var for var in _f.variables.keys() if var not in ['lon', 'lat', 'lev', 'time']]:
+            if variable in self.availInstruments:
+                continue
+            else:
+                self.availInstruments.append((variable,_f.variables['lev'].units))
+
+        return self.availInstruments
 
     def fromYaml(self,yamlTop,**kwargs):
         '''
