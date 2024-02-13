@@ -2,6 +2,7 @@
 
 import common
 from abc import ABC, abstractmethod
+import netCDF4 as nc4
 
 class CoordRange:
     '''

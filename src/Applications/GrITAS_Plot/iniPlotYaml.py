@@ -4,7 +4,6 @@ import yaml
 import common
 import os, sys, optparse
 import pandas as pd
-import netCDF4 as nc4
 import defaults
 from plot_util import *
 from optparse import OptionValueError
