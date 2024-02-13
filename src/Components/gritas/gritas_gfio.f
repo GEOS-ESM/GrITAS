@@ -19,7 +19,7 @@
      &                          var_list,var_descr,listsz, timeinc,
      &                          l2d, list_2d, bias_2d, stdv_2d, nobs_2d,
      &                          l3d, list_3d, bias_3d, stdv_3d, nobs_3d,
-     &                          nstat, yyyymmdd, hhmmss, fid,
+     &                          nstat, punits, yyyymmdd, hhmmss, fid,
      &                          chsq_2d, chsq_3d )
 !
 ! !USES:
@@ -68,6 +68,7 @@
       integer        hhmmss        ! Hour-minute-second, e.g., 120000
   
       integer        timeinc        ! output frequency (HHMMSS)
+      character(len=3) ::   punits ! units of "levels", hPa or 1
 !
 ! !OUTPUT PARAMETERS: 
 !
@@ -116,7 +117,7 @@
      &                      var_list,var_descr, listsz, timeinc,
      &                      l2d,  list_2d, bias_2d,
      &                      l3d,  list_3d, bias_3d,
-     &                      nymd, nhms, fid(indx) )
+     &                      punits, nymd, nhms, fid(indx) )
 
       if ( nstat2 .ge. 2 ) then
          if ( nstat .lt. 0 ) then
@@ -129,7 +130,7 @@
      &                      var_list,var_descr, listsz, timeinc,
      &                      l2d,  list_2d, stdv_2d,
      &                      l3d,  list_3d, stdv_3d,
-     &                      nymd, nhms, fid(indx) )
+     &                      punits, nymd, nhms, fid(indx) )
       end if
 
       if ( nstat2 .ge. 3 ) then
@@ -143,7 +144,7 @@
      &                      var_list,var_descr, listsz, timeinc,
      &                      l2d,  list_2d, nobs_2d,
      &                      l3d,  list_3d, nobs_3d,
-     &                      nymd, nhms, fid(indx) )
+     &                      punits, nymd, nhms, fid(indx) )
       end if
 
       if ( nstat2 .ge. 4 ) then
@@ -157,7 +158,7 @@
      &                      var_list,var_descr, listsz, timeinc,
      &                      l2d,  list_2d, chsq_2d(:,:,:,1),
      &                      l3d,  list_3d, chsq_3d(:,:,:,:,1),
-     &                      nymd, nhms, fid(indx) )
+     &                      punits, nymd, nhms, fid(indx) )
       end if
       if ( nstat2 .ge. 5 ) then
          if ( nstat .lt. 0 ) then
@@ -170,7 +171,7 @@
      &                      var_list,var_descr, listsz, timeinc,
      &                      l2d,  list_2d, chsq_2d(:,:,:,2),
      &                      l3d,  list_3d, chsq_3d(:,:,:,:,2),
-     &                      nymd, nhms, fid(indx) )
+     &                      punits, nymd, nhms, fid(indx) )
       end if
       if ( nstat2 .ge. 6 ) then
          if ( nstat .lt. 0 ) then
@@ -183,7 +184,7 @@
      &                      var_list,var_descr, listsz, timeinc,
      &                      l2d,  list_2d, chsq_2d(:,:,:,3),
      &                      l3d,  list_3d, chsq_3d(:,:,:,:,3),
-     &                      nymd, nhms, fid(indx) )
+     &                      punits, nymd, nhms, fid(indx) )
       end if
 
 
@@ -208,7 +209,7 @@
      &                          var_list,var_descr, listsz, timeinc,
      &                          l2d, list_2d, data_2d,
      &                          l3d, list_3d, data_3d,
-     &                          yyyymmdd, hhmmss, fid )
+     &                          punits, yyyymmdd, hhmmss, fid )
 !
 ! !USES:
 !
@@ -242,6 +243,7 @@
       real  data_2d(im,jm,l2d)     !   time mean
                                    ! Upper-air (3D) grids:
       real  data_3d(im,jm,km,l3d)  !   time mean
+      character(len=*) :: punits   ! level units
       integer        yyyymmdd      ! Year-month-day, e.g., 19971003
       integer        hhmmss        ! Hour-minute-second, e.g., 120000
   
@@ -316,7 +318,7 @@
          prec = 0               ! 32 bits
 
          call GFIO_Create ( trim(fname), trim(title), trim(source), trim(contact), amiss,
-     &                      im, jm, nlevs, glon, glat, plevs, 'hPa', 
+     &                      im, jm, nlevs, glon, glat, plevs, trim(punits), 
      &                      yyyymmdd, hhmmss, timeinc,
      &                      listsz, var_list, var_descr, vunits, kmvar,
      &                      valid_range, packing_range, prec,

@@ -7,6 +7,8 @@
 # ---------------------------------------------
 GrITAS*Vertical_Levels: 1 2 3 
 
+GrITAS*Vertical_Lev_Units: 1
+
 # User Defined Grid List
 # ----------------------
 GrITAS*List::

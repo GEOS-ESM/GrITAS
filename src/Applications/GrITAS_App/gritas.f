@@ -237,6 +237,7 @@
                         ! 1 = scale by sigo
                         ! 2 = scale by o
                         ! 3 = scale by f
+      character(len=3) punits
       character(len=30) expid
       character(len=8) ftype, otype
       character(len=10) dtype
@@ -265,6 +266,7 @@
       nymd_ens = -1         !  redundant date (as from ensemble members)
       nhms_ens = -1         !  redundant date (as from ensemble members)
 
+      punits = "hPa"
       nprof_total = 0
       lwimask='NONE'
       first = .true.
@@ -291,7 +293,7 @@
      &                   kt_list, kx_list, var_list, var_descr,
      &                   listsz, nrmlz, xcov, pxcov, self, rtms, t1, t2, lwimask, confidence, 
      &                   scale_res, lona, lonb, lminmax, expid, scorecard, tch, symmetrize,
-     &                   raobspd )
+     &                   raobspd, punits )
 
       iopt = abs(ioptn)
 
@@ -1024,7 +1026,7 @@
      &                               var_list, var_descr, listsz, timinc,
      &                               l2d, list_2d, bias_2d(:,:,:,1)  , stdv_2d(:,:,:,islot)  , nobs_2d,
      &                               l3d, list_3d, bias_3d(:,:,:,:,1), stdv_3d(:,:,:,:,islot), nobs_3d,
-     &                               nstat, nymd, nhms, fid, chsq_2d=chsq_2d, chsq_3d=chsq_3d ) 
+     &                               nstat, punits, nymd, nhms, fid, chsq_2d=chsq_2d, chsq_3d=chsq_3d ) 
 
              else
 
@@ -1198,7 +1200,7 @@
      &                         listsz, nrmlz, xcov, pxcov, self, rtms, t1, t2, lwimask,
      &                         confidence, scale_res,
      &                         lona, lonb, lminmax, expid, scorecard, tch,
-     &                         symmetrize, raobspd )
+     &                         symmetrize, raobspd, punits )
 
 
 ! !USES:
@@ -1279,6 +1281,7 @@
       real   ,intent(inout) :: lona,lonb     ! longitude interval of obs to be considered in stats
       character(len=*),intent(inout) :: expid! experiment identifier
       integer,intent(inout) :: scorecard     ! generate info for scorecard
+      character(len=*) :: punits             ! vertical levs units(hPa or 1)
 
 ! !INPUT/OUTPUT PARAMETERS:
 
@@ -1754,6 +1757,15 @@
             if(iret .ne. 0) call gritas_perror
      &            ('GrITAS: Allocation error for plevs2 ')
          end if
+
+!        vertical levels units
+!        ---------------------
+         call i90_label ( 'GrITAS*Vertical_Lev_Units:', iret )
+         if ( iret .eq. 0 ) then
+            call i90_gtoken ( token,  iret )
+            punits = trim(token)
+         endif
+         write(6,'(2a)') "Vertical level units: ", trim(punits)
 
 !        vertical levels
 !        ---------------
