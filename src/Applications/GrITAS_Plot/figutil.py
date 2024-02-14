@@ -644,7 +644,7 @@ class GritasVars:
 
         return var
 
-class Gritas(GritasVars,GritasFig):
+class Gritas(GritasFig,GritasVars):
     '''
     Class to control production of figures from GrITAS-produced netCDF files
 
@@ -946,5 +946,5 @@ class Gritas(GritasVars,GritasFig):
         -------
         None
         '''
-        GritasFig.__init__(self,prefix,obType,region,scale,linePlot,simpleBars,includeObsCounts,yrs,mnths)
+        super().__init__(self,prefix,obType,region,scale,linePlot,simpleBars,includeObsCounts,yrs,mnths)
         self.figExist=True
