@@ -445,7 +445,8 @@ class Experiment(Serializer):
        Absolute path of experiment netCDF file
 
     availInstruments : list
-       List of names (str) of instruments contained in netCDF file pointed to by pathToFile
+       List of tuples, where each tuple is comprised of an instrument contained in netCDF file pointed to by pathToFile
+       and the vertical units for said instrument. Tuple types are (str,str).
 
     Methods
     -------
@@ -453,7 +454,8 @@ class Experiment(Serializer):
        Sets Experiment attributes from yamlTop level in an open yaml input file
 
     getInstruments(self)
-       Use pathToFile member variable to collect, and return to user, which instruments are present in netCDF file
+       Use pathToFile member variable to collect, and return to user, which instruments
+       (and accompanying vertical units) are present in netCDF file
     '''
     def __init__(self,name='Unspecified',nickname='Unspecified',pathToFile='./'):
         '''
@@ -487,7 +489,8 @@ class Experiment(Serializer):
 
     def getInstruments(self):
         '''
-        Use pathToFile member variable to collect, and return to user, which instruments are present in netCDF file
+        Use pathToFile member variable to collect, and return to user, which instruments
+        (and accompanying vertical units) are present in netCDF file
 
         Returns
         -------

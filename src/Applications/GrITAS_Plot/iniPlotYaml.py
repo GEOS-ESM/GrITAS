@@ -94,16 +94,15 @@ for e in options.expIDs.split('/'):
     exp = Experiment(name=e,nickname=e,pathToFile='%s/%s/oma/%s/%s_gritas.nc4'%
                      (os.getcwd(),e,options.date.replace('/','-'),options.instrument))
 
-    # Determine available instruments
-    print(exp.getInstruments())
-    _availInstruments = exp.getInstruments()
+    # Determine available instruments for this Experiment instance
+    availInstruments = exp.getInstruments()
 
-    # Add instance to collection
+    # Add Experiment instance to collection
     experiments.append(exp)
 
 # Instantiate instruments
-# Instruments = Collection('instruments',[defaults.instruments[options.instrument]])
-Instruments = Collection('instruments',[Instrument(name,_min=90.0,_max=110.0,vertUnits=unit) for name,unit in _availInstruments])
+Instruments = Collection('instruments',[Instrument(name,_min=90.0,_max=110.0,vertUnits=unit)
+                                        for name,unit in availInstruments])
 
 # Modify plot params
 # ------------------
