@@ -191,6 +191,7 @@
       integer idel, isyn, ksyn, ioptn, iopt, ios, i, j, iii
       integer nymd, nhms, timinc, nsyn, ier, nstat, nr, rc
       character*8 ftype, dtype, otype
+      character(len=3) punits
       character(len=255) RC_red, fname
       logical DO_red
       logical ncf, split_tgroups, first, nrmlz, meanres
@@ -207,6 +208,7 @@
       ioptn = 1                          ! keep only obs which passed QC
       first = .true.
       nrmlz = .true.
+      punits = "hPa"
 
 !     User interface
 !     --------------
@@ -216,7 +218,8 @@
      &                   DO_red, RC_red,
      &                   ndel, del_ifname, grid_obasen, odsmean_fntmpl,
      &                   kt_list, kx_list, var_list, var_descr, 
-     &                   listsz, ntresh, nrmlz, confidence, scale_res ) 
+     &                   listsz, ntresh, nrmlz, confidence, scale_res,
+     &                   punits )
       iopt = abs(ioptn)
 
       if (confidence<0.0) then
@@ -362,7 +365,7 @@
 !_RT &                             var_list, var_descr, listsz, timinc,
 !_RT &                             l2d, list_2d, bias_2d(1,1,1,1),   stdv_2d(1,1,1,1),   nobs_2d,
 !_RT &                             l3d, list_3d, bias_3d(1,1,1,1,1), stdv_3d(1,1,1,1,1), nobs_3d,
-!_RT &                             nstat, nymd, nhms, fid )
+!_RT &                             nstat, punits, nymd, nhms, fid )
 !_RT          else
 !_RT            call Make_Fname ( grid_obasen, nymd, nhms, grid_ofname )
 !_RT            call GrADS_Output ( grid_ofname,
@@ -438,7 +441,7 @@
 !_RT &                                      var_list, var_descr, listsz, timinc,
 !_RT &                                      l2d, list_2d, bias_2d(1,1,1,1),   stdv_2d(1,1,1,1),   nobs_2d,
 !_RT &                                      l3d, list_3d, bias_3d(1,1,1,1,1), stdv_3d(1,1,1,1,1), nobs_3d,
-!_RT &                                      nstat, nymd, nhms, fid )
+!_RT &                                      nstat, punits, nymd, nhms, fid )
     
 !_RT                 else
 !_RT                   call Make_Fname ( grid_obasen, nymd, nhms, grid_ofname )
@@ -666,7 +669,7 @@
      &                             var_list, var_descr, listsz, timinc,
      &                             l2d, list_2d, bias_2d(:,:,:,1),   stdv_2d(:,:,:,1),   nobs_2d,
      &                             l3d, list_3d, bias_3d(:,:,:,:,1), stdv_3d(:,:,:,:,1), nobs_3d,
-     &                             nstat, nymd, nhms, fid, chsq_2d=chsq_2d, chsq_3d=chsq_3d )
+     &                             nstat, punits, nymd, nhms, fid, chsq_2d=chsq_2d, chsq_3d=chsq_3d )
 
             else
                call Make_Fname ( grid_obasen, nymd, nhms, grid_ofname )
@@ -730,7 +733,8 @@
      &                         DO_red, RC_red,
      &                         ndel, del_ifname, grid_ofname, odsmean_fntmpl,
      &                         kt_list, kx_list, var_list, var_descr, 
-     &                         listsz, ntresh, nrmlz, confidence, scale_res )
+     &                         listsz, ntresh, nrmlz, confidence, scale_res, 
+     &                         punits )
 
 ! !USES:
 
@@ -784,6 +788,7 @@
    
       logical          DO_red                ! Defines whether to apply reducer or not
       character(len=*) RC_red                ! Recucer resource filename
+      character(len=*) punits                ! Vertical levs units, hPa or 1
 
 ! !INPUT/OUTPUT PARAMETERS:
 
@@ -1069,6 +1074,15 @@
             if(iret .ne. 0) call gritas_perror
      &            ('GrITAS: Allocation error for plevs2 ')
          end if
+
+!        vertical levels units
+!        ---------------------
+         call i90_label ( 'GrITAS*Vertical_Lev_Units:', iret )
+         if ( iret .eq. 0 ) then
+            call i90_gtoken ( token,  iret )
+            punits = trim(token)
+         endif
+         write(6,'(2a)') "Vertical level units: ", trim(punits)
 
 !        vertical levels
 !        ---------------
