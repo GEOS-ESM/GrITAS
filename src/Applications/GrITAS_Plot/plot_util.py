@@ -127,7 +127,7 @@ class Region(Serializer):
         '''
         self.longitude = CoordRange(lonRange)
         self.latitude = CoordRange(latRange)
-        super().__init__(self,name,('lona',self.longitude._min),('lonb',self.longitude._max),
+        super().__init__(name,('lona',self.longitude._min),('lonb',self.longitude._max),
                          ('lata',self.latitude._min),('latb',self.latitude._max))
 
     def __pretty_lat__(self,l):
@@ -184,7 +184,7 @@ class Region(Serializer):
         '''
         self.longitude = CoordRange((yamlTop['lona'],yamlTop['lonb']))
         self.latitude = CoordRange((yamlTop['lata'],yamlTop['latb']))
-        super().__init__(self,kwargs['name'],('lona',self.longitude._min),('lonb',self.longitude._max),
+        super().__init__(kwargs['name'],('lona',self.longitude._min),('lonb',self.longitude._max),
                          ('lata',self.latitude._min),('latb',self.latitude._max))
         return self
 
@@ -394,7 +394,7 @@ class Instrument(Serializer):
         self._min=_min
         self._max=_max
         self.vertUnits=vertUnits
-        super().__init__(self,name,('vertical units',str(self.vertUnits)),
+        super().__init__(name,('vertical units',str(self.vertUnits)),
                          ('min value', self._min),('max value', self._max))
 
     def __repr__(self):
@@ -425,7 +425,7 @@ class Instrument(Serializer):
         self._min=yamlTop['min value']
         self._max=yamlTop['max value']
         self.vertUnits=yamlTop['vertical units']
-        super().__init__(self,kwargs['name'],('vertical units',str(self.vertUnits)),
+        super().__init__(kwargs['name'],('vertical units',str(self.vertUnits)),
                          ('min value', self._min),('max value', self._max))
         return self
 
@@ -475,7 +475,7 @@ class Experiment(Serializer):
         self.nickname=nickname
         self.pathToFile=pathToFile
         self.availInstruments=[]
-        super().__init__(self,name,('nickname',self.nickname),('file name', self.pathToFile))
+        super().__init__(name,('nickname',self.nickname),('file name', self.pathToFile))
 
     def __repr__(self):
         '''
@@ -523,7 +523,7 @@ class Experiment(Serializer):
         '''
         self.nickname=yamlTop['nickname']
         self.pathToFile=yamlTop['file name']
-        super().__init__(self,kwargs['name'],('nickname',self.nickname),('file name', self.pathToFile))
+        super().__init__(kwargs['name'],('nickname',self.nickname),('file name', self.pathToFile))
         return self
 
 class PlotParams(Serializer):
@@ -593,7 +593,7 @@ class PlotParams(Serializer):
         self.linePlot=linePlot
         self.simpleBars=True
         self.form='png'
-        super().__init__(self,'plot params',
+        super().__init__('plot params',
                          ('time series', self.timeSeries),
                          ('time series var', self.timeSeriesVar),
                          ('monthly', self.monthly),
@@ -642,7 +642,7 @@ class PlotParams(Serializer):
         self.compareVia = yamlTop['compare via']
         self.regions = yamlTop['regions']
         self.form = yamlTop['format']
-        super().__init__(self,'plot params',
+        super().__init__('plot params',
                          ('time series', self.timeSeries),
                          ('time series var', self.timeSeriesVar),
                          ('monthly', self.monthly),
@@ -702,7 +702,7 @@ class Stats(Serializer):
         self.measures=measures
         self.colors=[c for c in ['b','r','g','k'][:len(self.measures)]]
         self.confidence=confInterval
-        super().__init__(self,'statistics',
+        super().__init__('statistics',
                          ('flavor',self.flavor),('scale',self.scale),('units',self.units),
                          ('measures',self.measures),('colors', self.colors),('confidence', self.confidence))
 
@@ -745,7 +745,7 @@ class Stats(Serializer):
         self.measures   = yamlTop['measures']
         self.colors     = yamlTop['colors']
         self.confidence = yamlTop['confidence']
-        super().__init__(self,'statistics',
+        super().__init__('statistics',
                          ('flavor',self.flavor),('scale',self.scale),('units',self.units),
                          ('measures',self.measures),('colors', self.colors),('confidence', self.confidence))
 
@@ -828,7 +828,7 @@ class GlobalProps(Serializer):
         self.obCnt=kwargs.get('obCnt')
         self.obType=kwargs.get('obType')
         self.supportedStats=kwargs.get('supported_stats') if kwargs.get('supported_stats') else ['mean', 'stdv', 'sum']
-        super().__init__(self,self.name,
+        super().__init__(self.name,
                          ('start date', self.startDate),
                          ('end date', self.endDate),
                          ('supported stats', self.supportedStats),
@@ -859,7 +859,7 @@ class GlobalProps(Serializer):
         self.experiments.fromYaml(yamlTop['experiments'],cls='EXPERIMENT')
         self.instruments.fromYaml(yamlTop['instruments'],cls='INSTRUMENT')
         self.plotParams.fromYaml(yamlTop['plot params'])
-        super().__init__(self,self.name,
+        super().__init__(self.name,
                          ('start date', self.startDate),
                          ('end date', self.endDate),
                          ('supported stats', self.supportedStats),
