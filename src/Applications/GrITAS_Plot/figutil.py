@@ -838,8 +838,6 @@ class Gritas(GritasFig,GritasVars):
 
         # Select the correct member variable based on 'stat'
         var=None
-        # if stat == 'sum' or stat == 'mean': var = self.mean
-        # if stat == 'stdv':                  var = self.stdv
 
         if stat == 'sum': var = self.nobs
         if stat == 'mean': var = self.mean
@@ -946,5 +944,5 @@ class Gritas(GritasFig,GritasVars):
         -------
         None
         '''
-        super().__init__(self,prefix,obType,region,scale,linePlot,simpleBars,includeObsCounts,yrs,mnths)
+        super().__init__(prefix,obType,region,scale,linePlot,simpleBars,includeObsCounts,yrs,mnths)
         self.figExist=True
