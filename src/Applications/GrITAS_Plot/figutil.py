@@ -770,7 +770,7 @@ class Gritas(GritasFig,GritasVars):
 
         # Pick out latitude, longitude and level values stored
         self.loc={k:f.variables[k][:] for k in ['lat','lon','lev']}
-        idx = range(1,self.getDim('lev')
+        idx = range(0,self.getDim('lev'))
 
         # Read remaining variables - i.e., the statistics
         try:
