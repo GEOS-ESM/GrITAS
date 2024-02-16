@@ -82,9 +82,6 @@ regions=[Region(k,v['lon'],v['lat']) for k,v in defaults.regions.items() if k in
 # Bundle all regions focused on into a super set
 Universe=Collection('regions',regions)
 
-# Instantiate instruments
-Instruments = Collection('instruments',[defaults.instruments[options.instrument]])
-
 # Declare temporal window to investigate
 pandasDates = pd.date_range(start=options.date.split('/')[0],
                             end=options.date.split('/')[1],freq='D')
@@ -93,9 +90,19 @@ pandasDates = pd.date_range(start=options.date.split('/')[0],
 # -------------------------------
 experiments = Collection('experiments')
 for e in options.expIDs.split('/'):
-    experiments.append(Experiment(name=e,nickname=e,
-                                  pathToFile='%s/%s/oma/%s/%s_gritas.nc4'%
-                                  (os.getcwd(),e,options.date.replace('/','-'),options.instrument)))
+    # Form an Experiment instance
+    exp = Experiment(name=e,nickname=e,pathToFile='%s/%s/oma/%s/%s_gritas.nc4'%
+                     (os.getcwd(),e,options.date.replace('/','-'),options.instrument))
+
+    # Determine available instruments for this Experiment instance
+    availInstruments = exp.getInstruments()
+
+    # Add Experiment instance to collection
+    experiments.append(exp)
+
+# Instantiate instruments
+Instruments = Collection('instruments',[Instrument(name,_min=90.0,_max=110.0,vertUnits=unit)
+                                        for name,unit in availInstruments])
 
 # Modify plot params
 # ------------------

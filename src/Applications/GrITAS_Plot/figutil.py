@@ -13,29 +13,6 @@ from numpy import nan_to_num as nn
 # ------------------------------
 mpl.rc('font', family='serif')
 
-def revMaskedArray(arr,action):
-    '''
-    Reverse an array
-
-    Parameters
-    ----------
-    arr : numpy.ndarray
-       Array of data
-
-    action : bool
-       Whether reversal should be performed
-
-    Returns
-    -------
-    arr, class range
-    '''
-    if action:
-        idx = range(len(arr)-1,-1,-1)
-        return arr[idx], idx
-    else:
-        return arr, range(1,len(arr),1)
-
-
 def lvlAvg(arr,mask):
     '''
     Compute average of an array, neglecting elements based on a mask
@@ -506,8 +483,17 @@ class GritasFig:
             label.set_fontsize(self.maxLabelSize) if self.getDim('lev') <= 30 else label.set_fontsize(self.minLabelSize)
             label.set_fontweight('bold')
 
-        vunits = instruments[self.obType].vertUnits
-        ylabel='Pressure (%s)'%vunits if vunits == 'hPa' else 'Channel Index'
+        # Convenient reference to instrument selected by self.obType
+        thisInstrument = instruments[self.obType]
+        vunits = thisInstrument.vertUnits
+
+        # Set vertical axis label and order based on vunits
+        if vunits == 'hPa':
+            ylabel='Pressure (%s)'%vunits
+            self.ax.invert_yaxis()
+        else:
+            ylabel='Channel Index'
+
         xlabels=['(x %s)'%self.scale]
         if units != "1":
             xlabels[0] = units+r'$\left(\sigma_{EXP}/\sigma_{CTL}\right)$' if units == "%" else xlabels[0] + ' (%s' % units + ')'
@@ -644,7 +630,7 @@ class GritasVars:
 
         return var
 
-class Gritas(GritasVars,GritasFig):
+class Gritas(GritasFig,GritasVars):
     '''
     Class to control production of figures from GrITAS-produced netCDF files
 
@@ -784,9 +770,7 @@ class Gritas(GritasVars,GritasFig):
 
         # Pick out latitude, longitude and level values stored
         self.loc={k:f.variables[k][:] for k in ['lat','lon','lev']}
-
-        # Reverse order of masked array 'lev', if vertical units are not 'hPa'
-        self.loc['lev'], idx = revMaskedArray(self.loc['lev'], ( vunits != 'hPa' ) )
+        idx = range(0,self.getDim('lev'))
 
         # Read remaining variables - i.e., the statistics
         try:
@@ -838,8 +822,6 @@ class Gritas(GritasVars,GritasFig):
 
         # Select the correct member variable based on 'stat'
         var=None
-        # if stat == 'sum' or stat == 'mean': var = self.mean
-        # if stat == 'stdv':                  var = self.stdv
 
         if stat == 'sum': var = self.nobs
         if stat == 'mean': var = self.mean
@@ -946,5 +928,5 @@ class Gritas(GritasVars,GritasFig):
         -------
         None
         '''
-        GritasFig.__init__(self,prefix,obType,region,scale,linePlot,simpleBars,includeObsCounts,yrs,mnths)
+        super().__init__(prefix,obType,region,scale,linePlot,simpleBars,includeObsCounts,yrs,mnths)
         self.figExist=True

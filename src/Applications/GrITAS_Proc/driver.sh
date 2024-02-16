@@ -50,7 +50,7 @@ for YR in `seq $YR_I $YR_F`; do
 	    for SYNOPTIC in `seq -f %02g 0 6 18`; do
 
 		# Access all 'diag' type ods files
-		for ODS in `ls $LOC/H$SYNOPTIC/*diag*ods`; do #| grep diag.*ods`; do
+		for ODS in `ls $LOC/H$SYNOPTIC/*diag*ods`; do
 
 		    # Split $ODS on '.' delimiter
 		    VARS=(`cut -d'/' -f13- <<< $ODS | awk '{split($0,a,"."); print a[1],a[2],a[3]}'`)

@@ -2,6 +2,7 @@
 
 import common
 from abc import ABC, abstractmethod
+import netCDF4 as nc4
 
 class CoordRange:
     '''
@@ -126,8 +127,8 @@ class Region(Serializer):
         '''
         self.longitude = CoordRange(lonRange)
         self.latitude = CoordRange(latRange)
-        Serializer.__init__(self,name,('lona',self.longitude._min),('lonb',self.longitude._max),
-                            ('lata',self.latitude._min),('latb',self.latitude._max))
+        super().__init__(name,('lona',self.longitude._min),('lonb',self.longitude._max),
+                         ('lata',self.latitude._min),('latb',self.latitude._max))
 
     def __pretty_lat__(self,l):
         '''
@@ -183,8 +184,8 @@ class Region(Serializer):
         '''
         self.longitude = CoordRange((yamlTop['lona'],yamlTop['lonb']))
         self.latitude = CoordRange((yamlTop['lata'],yamlTop['latb']))
-        Serializer.__init__(self,kwargs['name'],('lona',self.longitude._min),('lonb',self.longitude._max),
-                            ('lata',self.latitude._min),('latb',self.latitude._max))
+        super().__init__(kwargs['name'],('lona',self.longitude._min),('lonb',self.longitude._max),
+                         ('lata',self.latitude._min),('latb',self.latitude._max))
         return self
 
 class Collection:
@@ -393,8 +394,8 @@ class Instrument(Serializer):
         self._min=_min
         self._max=_max
         self.vertUnits=vertUnits
-        Serializer.__init__(self,name,('vertical units',str(self.vertUnits)),
-                            ('min value', self._min),('max value', self._max))
+        super().__init__(name,('vertical units',str(self.vertUnits)),
+                         ('min value', self._min),('max value', self._max))
 
     def __repr__(self):
         '''
@@ -424,8 +425,8 @@ class Instrument(Serializer):
         self._min=yamlTop['min value']
         self._max=yamlTop['max value']
         self.vertUnits=yamlTop['vertical units']
-        Serializer.__init__(self,kwargs['name'],('vertical units',str(self.vertUnits)),
-                            ('min value', self._min),('max value', self._max))
+        super().__init__(kwargs['name'],('vertical units',str(self.vertUnits)),
+                         ('min value', self._min),('max value', self._max))
         return self
 
 class Experiment(Serializer):
@@ -443,10 +444,18 @@ class Experiment(Serializer):
     pathToFile : str
        Absolute path of experiment netCDF file
 
+    availInstruments : list
+       List of tuples, where each tuple is comprised of an instrument contained in netCDF file pointed to by pathToFile
+       and the vertical units for said instrument. Tuple types are (str,str).
+
     Methods
     -------
     fromYaml(self,yamlTop,**kwargs)
        Sets Experiment attributes from yamlTop level in an open yaml input file
+
+    getInstruments(self)
+       Use pathToFile member variable to collect, and return to user, which instruments
+       (and accompanying vertical units) are present in netCDF file
     '''
     def __init__(self,name='Unspecified',nickname='Unspecified',pathToFile='./'):
         '''
@@ -465,7 +474,8 @@ class Experiment(Serializer):
         '''
         self.nickname=nickname
         self.pathToFile=pathToFile
-        Serializer.__init__(self,name,('nickname',self.nickname),('file name', self.pathToFile))
+        self.availInstruments=[]
+        super().__init__(name,('nickname',self.nickname),('file name', self.pathToFile))
 
     def __repr__(self):
         '''
@@ -476,6 +486,25 @@ class Experiment(Serializer):
         str
         '''
         return 'Experiment instance "%s":\n\t nicknamed = %s\n\t path = %s\n'%(self.name,self.nickname,self.pathToFile)
+
+    def getInstruments(self):
+        '''
+        Use pathToFile member variable to collect, and return to user, which instruments
+        (and accompanying vertical units) are present in netCDF file
+
+        Returns
+        -------
+        list
+        '''
+        _f = nc4.Dataset(self.pathToFile,'r',format='NETCDF4')
+
+        for variable in [var for var in _f.variables.keys() if var not in ['lon', 'lat', 'lev', 'time']]:
+            if variable in self.availInstruments:
+                continue
+            else:
+                self.availInstruments.append((variable,_f.variables['lev'].units))
+
+        return self.availInstruments
 
     def fromYaml(self,yamlTop,**kwargs):
         '''
@@ -494,7 +523,7 @@ class Experiment(Serializer):
         '''
         self.nickname=yamlTop['nickname']
         self.pathToFile=yamlTop['file name']
-        Serializer.__init__(self,kwargs['name'],('nickname',self.nickname),('file name', self.pathToFile))
+        super().__init__(kwargs['name'],('nickname',self.nickname),('file name', self.pathToFile))
         return self
 
 class PlotParams(Serializer):
@@ -564,15 +593,15 @@ class PlotParams(Serializer):
         self.linePlot=linePlot
         self.simpleBars=True
         self.form='png'
-        Serializer.__init__(self,'plot params',
-                            ('time series', self.timeSeries),
-                            ('time series var', self.timeSeriesVar),
-                            ('monthly', self.monthly),
-                            ('line plot', self.linePlot),
-                            ('simple bars', self.simpleBars),
-                            ('compare via', self.compareVia),
-                            ('regions', self.regions),
-                            ('format', self.form))
+        super().__init__('plot params',
+                         ('time series', self.timeSeries),
+                         ('time series var', self.timeSeriesVar),
+                         ('monthly', self.monthly),
+                         ('line plot', self.linePlot),
+                         ('simple bars', self.simpleBars),
+                         ('compare via', self.compareVia),
+                         ('regions', self.regions),
+                         ('format', self.form))
         self.__valid__()
 
     def __valid__(self):
@@ -613,15 +642,15 @@ class PlotParams(Serializer):
         self.compareVia = yamlTop['compare via']
         self.regions = yamlTop['regions']
         self.form = yamlTop['format']
-        Serializer.__init__(self,'plot params',
-                            ('time series', self.timeSeries),
-                            ('time series var', self.timeSeriesVar),
-                            ('monthly', self.monthly),
-                            ('line plot', self.linePlot),
-                            ('simple bars', self.simpleBars),
-                            ('compare via', self.compareVia),
-                            ('regions', self.regions),
-                            ('format', self.form))
+        super().__init__('plot params',
+                         ('time series', self.timeSeries),
+                         ('time series var', self.timeSeriesVar),
+                         ('monthly', self.monthly),
+                         ('line plot', self.linePlot),
+                         ('simple bars', self.simpleBars),
+                         ('compare via', self.compareVia),
+                         ('regions', self.regions),
+                         ('format', self.form))
         self.__valid__()
 
 class Stats(Serializer):
@@ -673,9 +702,9 @@ class Stats(Serializer):
         self.measures=measures
         self.colors=[c for c in ['b','r','g','k'][:len(self.measures)]]
         self.confidence=confInterval
-        Serializer.__init__(self,'statistics',
-                            ('flavor',self.flavor),('scale',self.scale),('units',self.units),
-                            ('measures',self.measures),('colors', self.colors),('confidence', self.confidence))
+        super().__init__('statistics',
+                         ('flavor',self.flavor),('scale',self.scale),('units',self.units),
+                         ('measures',self.measures),('colors', self.colors),('confidence', self.confidence))
 
     def __set__(self):
         '''
@@ -716,9 +745,9 @@ class Stats(Serializer):
         self.measures   = yamlTop['measures']
         self.colors     = yamlTop['colors']
         self.confidence = yamlTop['confidence']
-        Serializer.__init__(self,'statistics',
-                            ('flavor',self.flavor),('scale',self.scale),('units',self.units),
-                            ('measures',self.measures),('colors', self.colors),('confidence', self.confidence))
+        super().__init__('statistics',
+                         ('flavor',self.flavor),('scale',self.scale),('units',self.units),
+                         ('measures',self.measures),('colors', self.colors),('confidence', self.confidence))
 
 class GlobalProps(Serializer):
     '''
@@ -799,12 +828,12 @@ class GlobalProps(Serializer):
         self.obCnt=kwargs.get('obCnt')
         self.obType=kwargs.get('obType')
         self.supportedStats=kwargs.get('supported_stats') if kwargs.get('supported_stats') else ['mean', 'stdv', 'sum']
-        Serializer.__init__(self,self.name,
-                            ('start date', self.startDate),
-                            ('end date', self.endDate),
-                            ('supported stats', self.supportedStats),
-                            ('ob count threshold for statistics', self.obCnt),
-                            ('obtype', self.obType))
+        super().__init__(self.name,
+                         ('start date', self.startDate),
+                         ('end date', self.endDate),
+                         ('supported stats', self.supportedStats),
+                         ('ob count threshold for statistics', self.obCnt),
+                         ('obtype', self.obType))
 
     def fromYaml(self,yamlTop,**kwargs):
         '''
@@ -830,12 +859,12 @@ class GlobalProps(Serializer):
         self.experiments.fromYaml(yamlTop['experiments'],cls='EXPERIMENT')
         self.instruments.fromYaml(yamlTop['instruments'],cls='INSTRUMENT')
         self.plotParams.fromYaml(yamlTop['plot params'])
-        Serializer.__init__(self,self.name,
-                            ('start date', self.startDate),
-                            ('end date', self.endDate),
-                            ('supported stats', self.supportedStats),
-                            ('ob count threshold for statistics', self.obCnt),
-                            ('obtype', self.obType))
+        super().__init__(self.name,
+                         ('start date', self.startDate),
+                         ('end date', self.endDate),
+                         ('supported stats', self.supportedStats),
+                         ('ob count threshold for statistics', self.obCnt),
+                         ('obtype', self.obType))
 
     def serialize(self,yam):
         '''

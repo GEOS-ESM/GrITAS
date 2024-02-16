@@ -20,10 +20,6 @@ cal=grit_util.calendar(gritas.dateStart, gritas.dateEnd,freq='D')
 #------------------
 files = [date.strftime(gritas.expDir) for date in cal.dates]
 
-# Conventional obs
-#-------------------
-convObs=['upconv','upconv2','gps_100lev']
-
 # Vars for creating directory structure for GrITAS output
 #---------------------------------------------------------
 year_i=cal.years[0];  month_i=cal.months[0];  day_i=cal.days[0]
@@ -39,9 +35,8 @@ for res in gritas.resids:
 
     # Form Gritas instance's input/output options and call 'out' to execute options at command line
     #-----------------------------------------------------------------------------------------------
-    # If instrument == conv, use non-standard named conventional ops rc files
-    # Note list a = list b only copies reference to list
-    instrs = convObs[:] if instrument == 'conv' else [instrument]
+    # instrs = ['upconv','upconv2','gps_100lev'] if instrument == 'conv' else [instrument]
+    instrs = [instrument]
 
     # Treat instrs list as a stack, calling a separate instance of gritas for each member
     while len(instrs) > 0:
