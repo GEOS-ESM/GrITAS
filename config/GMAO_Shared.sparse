@@ -3,7 +3,9 @@
 /GMAO_ods
 /GMAO_mpeu
 /GMAO_gfio
+/@GMAO_perllib
 /GMAO_perllib
+/GMAO_perllib@
 /GMAO_pilgrim
 /CMakeLists.txt
 /*.md

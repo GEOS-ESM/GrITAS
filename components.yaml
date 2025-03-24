@@ -22,6 +22,12 @@ ecbuild:
 GMAO_Shared:
   local: ./src/Shared/@GMAO_Shared
   remote: ../GMAO_Shared.git
-  branch: feature/rtodling/increase_bufr_size
+  tag: g5.42.0
   sparse: ./config/GMAO_Shared.sparse
+  develop: main
+
+GMAO_perllib:
+  local: ./src/Shared/@GMAO_Shared/@GMAO_perllib
+  remote: ../GMAO_perllib.git
+  tag: g1.0.1
   develop: main
